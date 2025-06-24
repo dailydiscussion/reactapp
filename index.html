@@ -69,6 +69,60 @@
     <!-- Babel for JSX transformation in browser (for direct HTML use) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Firebase SDKs (placed before the Babel script so global Firebase objects are available) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // IMPORTANT: Your actual Firebase project configuration provided by the user
+        const firebaseConfig = {
+            apiKey: "AIzaSyAHowpOHnCOaQ5eackHV__Bo3M42437lXQ",
+            authDomain: "daily-discussion-1040d.firebaseapp.com",
+            projectId: "daily-discussion-1040d",
+            storageBucket: "daily-discussion-1040d.firebasestorage.app",
+            messagingSenderId: "647593805968",
+            appId: "1:647593805968:web:321f52517221267163f015",
+            measurementId: "G-YB5N6Q6MDZ"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Expose Firebase objects and functions globally for React components
+        window.firebaseApp = app;
+        window.db = db;
+        window.auth = auth;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.signInAnonymously = signInAnonymously;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.deleteDoc = deleteDoc;
+        window.onSnapshot = onSnapshot;
+        window.collection = collection;
+        window.query = query;
+        window.getDocs = getDocs;
+
+        // Set up global __app_id for data paths
+        window.__app_id = firebaseConfig.projectId; // Using project ID as the app ID for storage paths
+
+        // Initial authentication check
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                try {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously to Firebase.");
+                } catch (error) {
+                    console.error("Error signing in anonymously:", error);
+                }
+            } else {
+                console.log("Firebase user is logged in:", user.uid);
+            }
+        });
+    </script>
+
     <script type="text/babel">
         // ErrorBoundary component to catch rendering errors
         class ErrorBoundary extends React.Component {
@@ -158,9 +212,31 @@
             const [isLoggedIn, setIsLoggedIn] = useState(false);
             const [notification, setNotification] = useState({ message: '', type: '', visible: false });
             const [notificationPermission, setNotificationPermission] = useState('default'); // 'granted', 'denied', 'default'
+            const [userId, setUserId] = useState(null); // State to store the authenticated user ID
+            const [isAuthReady, setIsAuthReady] = useState(false); // To track if auth state is determined
 
-            // Request notification permission on app load
+            // --- Firebase Auth & Data Loading ---
             useEffect(() => {
+                // Listen for auth state changes
+                const unsubscribeAuth = window.onAuthStateChanged(window.auth, (user) => {
+                    if (user) {
+                        setUserId(user.uid);
+                    } else {
+                        // Attempt anonymous sign-in if no user is found
+                        window.signInAnonymously(window.auth)
+                            .then(credential => {
+                                setUserId(credential.user.uid);
+                                console.log("Signed in anonymously:", credential.user.uid);
+                            })
+                            .catch(error => {
+                                console.error("Error signing in anonymously:", error);
+                                showNotification("Authentication failed. Data persistence may not work.", 'error');
+                            });
+                    }
+                    setIsAuthReady(true); // Auth state has been determined
+                });
+
+                // Request notification permission on app load
                 if ('Notification' in window) {
                     setNotificationPermission(Notification.permission);
                     if (Notification.permission === 'default') {
@@ -169,7 +245,77 @@
                         });
                     }
                 }
-            }, []);
+
+                return () => unsubscribeAuth(); // Cleanup auth listener on component unmount
+            }, []); // Empty dependency array means this runs once on mount
+
+            // Effect for loading data from Firestore and setting up real-time listeners
+            useEffect(() => {
+                if (isAuthReady && userId) {
+                    const userSubjectsCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "subjects");
+                    const userTimetableCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "timetable");
+
+                    // Listen for real-time updates to subjects (testData)
+                    const unsubscribeSubjects = window.onSnapshot(userSubjectsCollectionRef, (snapshot) => {
+                        const loadedTestData = {};
+                        snapshot.forEach((doc) => {
+                            loadedTestData[doc.id] = doc.data().tests || []; // Assuming tests array is stored under 'tests' field
+                        });
+                        setTestData(loadedTestData);
+                        console.log("Test data loaded/updated from Firestore.");
+                        if (Object.keys(loadedTestData).length === 0) {
+                            showNotification("No subjects found. Add new subjects to get started!", 'info');
+                        }
+                        // Adjust current selected subjects if the loaded data doesn't contain it
+                        if (currentSelectedSubject && !loadedTestData.hasOwnProperty(currentSelectedSubject)) {
+                             setCurrentSelectedSubject(Object.keys(loadedTestData).length > 0 ? Object.keys(loadedTestData)[0] : '');
+                        }
+                         if (currentTimetableSubject && !loadedTestData.hasOwnProperty(currentTimetableSubject)) {
+                             setCurrentTimetableSubject(Object.keys(loadedTestData).length > 0 ? Object.keys(loadedTestData)[0] : '');
+                        }
+
+                    }, (error) => {
+                        console.error("Error listening to subjects data:", error);
+                        showNotification("Failed to load subjects data.", 'error');
+                    });
+
+                    // Listen for real-time updates to timetable entries
+                    const unsubscribeTimetable = window.onSnapshot(userTimetableCollectionRef, (snapshot) => {
+                        const loadedTimetableEntries = snapshot.docs.map(doc => ({
+                            id: doc.id,
+                            ...doc.data()
+                        }));
+                        setTimetableEntries(loadedTimetableEntries);
+                        console.log("Timetable data loaded/updated from Firestore.");
+                    }, (error) => {
+                        console.error("Error listening to timetable data:", error);
+                        showNotification("Failed to load timetable data.", 'error');
+                    });
+
+                    // Set initial focus items from loaded test data (first subject's tests)
+                    // This logic might need refinement based on how you want "Today's Focus" to persist.
+                    // For now, it will load the sample data, then update if Firestore has data.
+                     const initialSubjectKey = Object.keys(testData)[0];
+                     if (initialSubjectKey && testData[initialSubjectKey]?.length > 0) {
+                        const initialFocus = testData[initialSubjectKey].slice(0, 2).map(test => ({
+                            id: `${initialSubjectKey}-${test.title}`,
+                            subject: initialSubjectKey,
+                            title: test.title,
+                            mcqs: test.mcqs,
+                            type: "Custom", // Can be dynamic if you add a type to your test data
+                            iconPath: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
+                        }));
+                        setTodayFocusItems(initialFocus);
+                    }
+
+
+                    // Cleanup listeners on unmount or userId change
+                    return () => {
+                        unsubscribeSubjects();
+                        unsubscribeTimetable();
+                    };
+                }
+            }, [isAuthReady, userId]); // Re-run when auth state is ready or user changes
 
             // Effect to hide notification automatically
             useEffect(() => {
@@ -185,60 +331,14 @@
                 setNotification({ message, type, visible: true });
             }, []);
 
-            // Sample Test Data (Simulated from backend)
-            const [testData, setTestData] = useState({
-                "Psychiatry": [
-                    { title: "Neurocognitive, Mood, Subs related, Neurosis 1", mcqs: 50, date: "2024-06-25" },
-                    { title: "Neurocognitive, Mood, Subs related, Neurosis 2", mcqs: 50, date: "2024-06-25" },
-                    { title: "Personality, Specific, Psychiatric emergency and Clinical psychiatry 1", mcqs: 50, date: "2024-06-25" },
-                    { title: "Child Psychiatry & Forensics", mcqs: 40, date: "2024-06-24" },
-                    { title: "Schizophrenia & Other Psychotic Disorders", mcqs: 60, date: "2024-06-23" },
-                    { title: "Anxiety & Somatoform Disorders", mcqs: 45, date: "2024-06-22" }
-                ],
-                "Surgery": [
-                    { title: "General Surgery Principles", mcqs: 100, date: "2024-06-20" },
-                    { title: "Abdominal Surgery MCQs", mcqs: 75, date: "2024-06-19" },
-                    { title: "Orthopedic Surgery Basics", mcqs: 80, date: "2024-06-18" },
-                    { title: "Cardiothoracic Surgery Test", mcqs: 70, date: "2024-06-17" },
-                    { title: "Vascular Surgery Quiz", mcqs: 50, date: "2024-06-16" },
-                    { title: "Pediatric Surgery Scenarios", mcqs: 60, date: "2024-06-15" }
-                ],
-                "Obs&Gyne": [
-                    { title: "Obstetrics Basics", mcqs: 60, date: "2024-06-10" },
-                    { title: "Gynecology Disorders", mcqs: 70, date: "2024-06-09" },
-                    { title: "Antenatal Care & Complications", mcqs: 55, date: "2024-06-08" },
-                    { title: "Labor & Delivery Management", mcqs: 65, date: "2024-06-07" },
-                    { title: "Reproductive Endocrinology", mcqs: 40, date: "2024-06-06" }
-                ]
-            });
+            // Initial Sample Data (will be overwritten by Firestore if data exists)
+            const [testData, setTestData] = useState({}); // Start empty, let Firestore populate
+            const [todayFocusItems, setTodayFocusItems] = useState([]); // Start empty, let Firestore populate
+            const [timetableEntries, setTimetableEntries] = useState([]); // Start empty, let Firestore populate
 
-            const [todayFocusItems, setTodayFocusItems] = useState([
-                {
-                    id: "Psychiatry-Sexuality, Child Psychi, Foreign Pshci, Facets and Psychotic disorders 1",
-                    subject: "Psychiatry",
-                    title: "Sexuality, Psychotic & Personality disorders", // Changed for sample data uniqueness
-                    mcqs: 50,
-                    type: "Custom",
-                    iconPath: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-                },
-                {
-                    id: "Psychiatry-Sexual, Psychotic & Personality disorders",
-                    subject: "Psychiatry",
-                    title: "Sexual, Psychotic & Personality disorders",
-                    mcqs: 50,
-                    type: "Custom",
-                    iconPath: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-                }
-            ]);
 
-            const [timetableEntries, setTimetableEntries] = useState([
-                { id: 't1', subject: 'Anatomy', topic: 'Upper Limb', date: '2024-07-01', time: '09:00' },
-                { id: 't2', subject: 'Physiology', topic: 'Cardiac Cycle', date: '2024-07-01', time: '11:00' },
-                { id: 't3', subject: 'Pharmacology', topic: 'Antibiotics', date: '2024-07-02', time: '14:00' },
-            ]);
-
-            const [currentSelectedSubject, setCurrentSelectedSubject] = useState('Psychiatry'); // For TestsCompletedPage
-            const [currentTimetableSubject, setCurrentTimetableSubject] = useState('Psychiatry'); // For TimetablePage progress
+            const [currentSelectedSubject, setCurrentSelectedSubject] = useState(''); // For TestsCompletedPage
+            const [currentTimetableSubject, setCurrentTimetableSubject] = useState(''); // For TimetablePage progress
 
             // --- Utility Functions ---
             const getRandomChange = () => {
@@ -249,30 +349,38 @@
                 return `<span class="${colorClass} text-lg font-semibold">${sign}${value}</span>`;
             };
 
-            // --- Data Manipulation Callbacks (passed to children) ---
-            const addSubject = useCallback((subjectName) => {
+            // --- Data Manipulation Callbacks (Firestore Integrated) ---
+            const addSubject = useCallback(async (subjectName) => {
+                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
                 if (!subjectName) {
                     showNotification('Subject name is required.', 'error');
                     return;
                 }
+                // Check locally first for quicker feedback, then verify with Firestore if necessary
                 if (testData.hasOwnProperty(subjectName)) {
                     showNotification(`Subject "${subjectName}" already exists.`, 'error');
                     return;
                 }
-                setTestData(prevData => ({
-                    ...prevData,
-                    [subjectName]: []
-                }));
-                showNotification(`Subject "${subjectName}" added successfully.`, 'success');
-            }, [testData, showNotification]);
+                
+                try {
+                    const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
+                    await window.setDoc(subjectDocRef, { tests: [] }); // Initialize with empty tests array
+                    setTestData(prevData => ({ ...prevData, [subjectName]: [] }));
+                    showNotification(`Subject "${subjectName}" added successfully.`, 'success');
+                } catch (error) {
+                    console.error("Error adding subject:", error);
+                    showNotification(`Failed to add subject "${subjectName}".`, 'error');
+                }
+            }, [userId, testData, showNotification]);
 
-            const addTest = useCallback((subjectName, title, mcqs, date) => {
+            const addTest = useCallback(async (subjectName, title, mcqs, date) => {
+                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
                 if (!subjectName || !title || !mcqs || !date) {
                     showNotification('All test fields are required.', 'error');
                     return;
                 }
                 if (!testData.hasOwnProperty(subjectName)) {
-                    showNotification('Subject does not exist.', 'error');
+                    showNotification('Subject does not exist. Please create the subject first.', 'error');
                     return;
                 }
                 if (testData[subjectName].some(test => test.title === title)) {
@@ -280,49 +388,94 @@
                     return;
                 }
 
-                const newTest = { title, mcqs: parseInt(mcqs), date };
-                setTestData(prevData => ({
-                    ...prevData,
-                    [subjectName]: [...prevData[subjectName], newTest]
-                }));
-                showNotification(`Test "${title}" added to "${subjectName}".`, 'success');
-            }, [testData, showNotification]);
+                try {
+                    const newTest = { title, mcqs: parseInt(mcqs), date };
+                    const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
+                    
+                    // Update the array using a transaction or get-update-set pattern
+                    const subjectDoc = await window.getDoc(subjectDocRef);
+                    if (subjectDoc.exists()) {
+                        const currentTests = subjectDoc.data().tests || [];
+                        const updatedTests = [...currentTests, newTest];
+                        await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
+                        setTestData(prevData => ({
+                            ...prevData,
+                            [subjectName]: updatedTests
+                        }));
+                        showNotification(`Test "${title}" added to "${subjectName}".`, 'success');
+                    } else {
+                        showNotification('Subject document not found.', 'error');
+                    }
+                } catch (error) {
+                    console.error("Error adding test:", error);
+                    showNotification(`Failed to add test "${title}".`, 'error');
+                }
+            }, [userId, testData, showNotification]);
 
-            const deleteSubject = useCallback((subjectName) => {
-                if (testData.hasOwnProperty(subjectName)) {
-                    const updatedTestData = { ...testData };
-                    delete updatedTestData[subjectName];
-                    setTestData(updatedTestData);
+            const deleteSubject = useCallback(async (subjectName) => {
+                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!testData.hasOwnProperty(subjectName)) {
+                    showNotification(`Subject "${subjectName}" not found.`, 'error');
+                    return;
+                }
 
+                try {
+                    const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
+                    await window.deleteDoc(subjectDocRef);
+                    
+                    setTestData(prevData => {
+                        const updatedTestData = { ...prevData };
+                        delete updatedTestData[subjectName];
+                        return updatedTestData;
+                    });
                     setTodayFocusItems(prevItems => prevItems.filter(item => item.subject !== subjectName));
 
-                    // Adjust current selected subjects if the deleted one was active
-                    if (currentSelectedSubject === subjectName) {
-                        setCurrentSelectedSubject(Object.keys(updatedTestData).length > 0 ? Object.keys(updatedTestData)[0] : '');
+                    if (Object.keys(testData).length > 1 && currentSelectedSubject === subjectName) {
+                        setCurrentSelectedSubject(Object.keys(testData)[0]);
+                    } else if (Object.keys(testData).length === 1 && currentSelectedSubject === subjectName) {
+                        setCurrentSelectedSubject(''); // No subjects left
                     }
-                    if (currentTimetableSubject === subjectName) {
-                        setCurrentTimetableSubject(Object.keys(updatedTestData).length > 0 ? Object.keys(updatedTestData)[0] : '');
+                    
+                    if (Object.keys(testData).length > 1 && currentTimetableSubject === subjectName) {
+                        setCurrentTimetableSubject(Object.keys(testData)[0]);
+                    } else if (Object.keys(testData).length === 1 && currentTimetableSubject === subjectName) {
+                        setCurrentTimetableSubject(''); // No subjects left
                     }
                     showNotification(`Subject "${subjectName}" deleted.`, 'success');
+                } catch (error) {
+                    console.error("Error deleting subject:", error);
+                    showNotification(`Failed to delete subject "${subjectName}".`, 'error');
                 }
-            }, [testData, currentSelectedSubject, currentTimetableSubject, showNotification]);
+            }, [userId, testData, currentSelectedSubject, currentTimetableSubject, showNotification]);
 
-            const deleteTest = useCallback((subjectName, testTitle) => {
-                if (testData.hasOwnProperty(subjectName)) {
-                    const initialLength = testData[subjectName].length;
-                    const updatedTests = testData[subjectName].filter(test => test.title !== testTitle);
-                    if (updatedTests.length < initialLength) {
+            const deleteTest = useCallback(async (subjectName, testTitle) => {
+                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!testData.hasOwnProperty(subjectName) || !testData[subjectName].some(test => test.title === testTitle)) {
+                    showNotification(`Test "${testTitle}" not found in ${subjectName}.`, 'error');
+                    return;
+                }
+
+                try {
+                    const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
+                    
+                    const subjectDoc = await window.getDoc(subjectDocRef);
+                    if (subjectDoc.exists()) {
+                        const currentTests = subjectDoc.data().tests || [];
+                        const updatedTests = currentTests.filter(test => test.title !== testTitle);
+                        await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
+
                         setTestData(prevData => ({
                             ...prevData,
                             [subjectName]: updatedTests
                         }));
                         setTodayFocusItems(prevItems => prevItems.filter(item => !(item.subject === subjectName && item.title === testTitle)));
                         showNotification(`Test "${testTitle}" deleted from "${subjectName}".`, 'success');
-                    } else {
-                        showNotification('Test not found.', 'error');
                     }
+                } catch (error) {
+                    console.error("Error deleting test:", error);
+                    showNotification(`Failed to delete test "${testTitle}".`, 'error');
                 }
-            }, [testData, showNotification]);
+            }, [userId, testData, showNotification]);
 
             const addFocusItem = useCallback((testToAdd, subjectName) => {
                 const newItemId = `${subjectName}-${testToAdd.title}`;
@@ -345,53 +498,63 @@
                 showNotification('Focus item removed.', 'success');
             }, [showNotification]);
 
-            const addTimetableEntry = useCallback((subject, topic, date, time) => {
+            const addTimetableEntry = useCallback(async (subject, topic, date, time) => {
+                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
                 if (!subject || !topic || !date || !time) {
                     showNotification('All fields for the timetable event are required.', 'error');
                     return;
                 }
-                const newId = `t${timetableEntries.length + 1}-${Date.now()}`;
-                setTimetableEntries(prevEntries => [...prevEntries, { id: newId, subject, topic, date, time }]);
-                showNotification('Study event added successfully!', 'success');
+                try {
+                    const timetableCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "timetable");
+                    const newEntryRef = window.doc(timetableCollectionRef); // Firestore generates an ID
+                    await window.setDoc(newEntryRef, { subject, topic, date, time });
+                    showNotification('Study event added successfully!', 'success');
 
-                // Schedule local notification
-                if (notificationPermission === 'granted') {
-                    const eventDateTime = new Date(`${date}T${time}`);
-                    const now = new Date();
-                    const timeUntilEvent = eventDateTime.getTime() - now.getTime();
+                    // Schedule local notification
+                    if (notificationPermission === 'granted') {
+                        const eventDateTime = new Date(`${date}T${time}`);
+                        const now = new Date();
+                        const timeUntilEvent = eventDateTime.getTime() - now.getTime();
 
-                    // Schedule notification a bit before the event, e.g., 5 minutes
-                    const reminderTime = timeUntilEvent - (5 * 60 * 1000);
+                        const reminderTime = timeUntilEvent - (5 * 60 * 1000); // 5 minutes before
 
-                    if (reminderTime > 0) {
-                        setTimeout(() => {
-                            new Notification('Upcoming Study Event', {
-                                body: `${topic} for ${subject} is starting soon at ${time}!`,
-                                icon: 'https://placehold.co/48x48/007bff/ffffff?text=🔔' // Placeholder icon
-                            });
-                        }, reminderTime);
+                        if (reminderTime > 0) {
+                            setTimeout(() => {
+                                new Notification('Upcoming Study Event', {
+                                    body: `${topic} for ${subject} is starting soon at ${time}!`,
+                                    icon: 'https://placehold.co/48x48/007bff/ffffff?text=🔔'
+                                });
+                            }, reminderTime);
+                        } else {
+                            console.warn('Event is in the past or too soon for a reminder.');
+                        }
                     } else {
-                        console.warn('Event is in the past or too soon for a reminder.');
+                        console.warn('Notification permission not granted.');
                     }
-                } else {
-                    console.warn('Notification permission not granted.');
+                } catch (error) {
+                    console.error("Error adding timetable entry:", error);
+                    showNotification("Failed to add study event.", 'error');
                 }
+            }, [userId, showNotification, notificationPermission]);
 
-            }, [timetableEntries, showNotification, notificationPermission]);
-
-            const deleteTimetableEntry = useCallback((idToDelete) => {
-                setTimetableEntries(prevEntries => prevEntries.filter(entry => entry.id !== idToDelete));
-                showNotification('Timetable entry deleted.', 'success');
-            }, [showNotification]);
+            const deleteTimetableEntry = useCallback(async (idToDelete) => {
+                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                try {
+                    const timetableEntryDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "timetable", idToDelete);
+                    await window.deleteDoc(timetableEntryDocRef);
+                    showNotification('Timetable entry deleted.', 'success');
+                } catch (error) {
+                    console.error("Error deleting timetable entry:", error);
+                    showNotification("Failed to delete timetable entry.", 'error');
+                }
+            }, [userId, showNotification]);
 
             // --- Page Navigation ---
             const navigateTo = useCallback((pageName, options = {}) => {
                 setCurrentPage(pageName);
-                // Special handling for specific pages, similar to original JS
                 if (pageName === 'trophy' && options.fromTimetable && options.subject) {
                     setCurrentSelectedSubject(options.subject);
                 }
-                // Scroll to top when navigating
                 window.scrollTo(0, 0);
             }, []);
 
@@ -404,10 +567,20 @@
             const handleLogout = () => {
                 setIsLoggedIn(false);
                 navigateTo('login');
+                setUserId(null); // Clear user ID on logout
             };
 
             // Render Logic based on currentPage
             const renderPage = () => {
+                if (!isAuthReady) {
+                    return (
+                        <div className="flex flex-col items-center justify-center min-h-screen">
+                            <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <p className="text-gray-600">Loading application...</p>
+                        </div>
+                    );
+                }
+
                 switch (currentPage) {
                     case 'login':
                         return <LoginPage onLogin={handleLogin} />;
@@ -454,7 +627,7 @@
                                     onBackToProfile={() => navigateTo('profile')}
                                 />;
                     case 'profile':
-                        return <ProfilePage onManageContent={() => navigateTo('manage-tests')} onLogout={handleLogout} />;
+                        return <ProfilePage onManageContent={() => navigateTo('manage-tests')} onLogout={handleLogout} currentUserId={userId} />;
                     default:
                         return <LoginPage onLogin={handleLogin} />;
                 }
@@ -465,7 +638,7 @@
                     <main id="main-content" className="pb-24">
                         {renderPage()}
                     </main>
-                    <BottomNavigation currentPage={currentPage} onNavigate={navigateTo} />
+                    {isLoggedIn && <BottomNavigation currentPage={currentPage} onNavigate={navigateTo} />}
                     {notification.visible && (
                         <NotificationMessage
                             message={notification.message}
@@ -1114,7 +1287,7 @@
         };
 
         // ProfilePage Component
-        const ProfilePage = ({ onManageContent, onLogout }) => {
+        const ProfilePage = ({ onManageContent, onLogout, currentUserId }) => {
             return (
                 <div id="page-profile" className="page px-6 py-8">
                     <header className="flex items-center justify-between mb-6">
@@ -1126,6 +1299,7 @@
                         <div>
                             <h2 className="font-bold text-xl text-gray-800">Alex Morgan</h2>
                             <p className="text-gray-500">alex.morgan@email.com</p>
+                            <p className="text-sm text-gray-600 break-all">User ID: {currentUserId || 'Not authenticated'}</p> {/* Display User ID */}
                         </div>
                     </div>
 
