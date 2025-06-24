@@ -72,10 +72,13 @@
     <!-- Firebase SDKs (placed before the Babel script so global Firebase objects are available) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        // Only import what's needed for this setup (signOut for logout simulation)
+        import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        // Import all necessary Firestore functions
         import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // IMPORTANT: Your actual Firebase project configuration provided by the user
+        // IMPORTANT: Your actual Firebase project configuration
+        // Replace with the config from your Firebase project settings
         const firebaseConfig = {
             apiKey: "AIzaSyAHowpOHnCOaQ5eackHV__Bo3M42437lXQ",
             authDomain: "daily-discussion-1040d.firebaseapp.com",
@@ -96,8 +99,9 @@
             window.firebaseApp = app;
             window.db = db;
             window.auth = auth;
-            window.onAuthStateChanged = onAuthStateChanged;
-            window.signInAnonymously = signInAnonymously;
+            window.signOut = signOut; // Expose signOut
+
+            // Expose ALL necessary Firestore specific functions
             window.doc = doc;
             window.setDoc = setDoc;
             window.deleteDoc = deleteDoc;
@@ -110,7 +114,6 @@
             // Set up global __app_id for data paths
             window.__app_id = firebaseConfig.projectId;
 
-            // Initial authentication check - this will be handled by React App component's useEffect
             console.log("Firebase SDKs initialized successfully in script module.");
 
         } catch (error) {
@@ -225,52 +228,30 @@
 
             console.log("App Component: Rendered. CurrentPage:", currentPage, "isLoggedIn:", isLoggedIn, "isAuthReady:", isAuthReady, "userId:", userId);
 
-            // --- Firebase Auth & Data Loading ---
+            // --- App Initialization and Persistence Check ---
             useEffect(() => {
-                console.log("App Component useEffect [auth]: Running Firebase auth listener setup.");
-                // Ensure Firebase auth object is available
-                if (!window.auth) {
-                    console.error("App Component useEffect [auth]: window.auth is not defined. Firebase may not have initialized.");
-                    setIsAuthReady(true); // Prevent infinite loading, but mark as failed init
-                    return;
+                console.log("App Component useEffect [init]: Checking for persistent login.");
+                // Check local storage for a logged-in state
+                const storedLoggedIn = localStorage.getItem('isLoggedIn');
+                const storedUserId = localStorage.getItem('userId');
+
+                if (storedLoggedIn === 'true' && storedUserId) {
+                    setUserId(storedUserId);
+                    setIsLoggedIn(true);
+                    setCurrentPage('dashboard');
+                    console.log("App Component useEffect [init]: Found persistent login for userId:", storedUserId);
+                } else {
+                    // No persistent login found, ensure we start at the login page
+                    setIsLoggedIn(false);
+                    setUserId(null);
+                    setCurrentPage('login');
+                    console.log("App Component useEffect [init]: No persistent login found, starting at login page.");
                 }
+                setIsAuthReady(true); // Authentication state (simulated) is now determined
+            }, []); // Empty dependency array means this runs once on mount
 
-                const unsubscribeAuth = window.onAuthStateChanged(window.auth, (user) => {
-                    console.log("App Component useEffect [auth]: onAuthStateChanged callback fired. User:", user ? user.uid : "null");
-                    if (user) {
-                        setUserId(user.uid);
-                        setIsLoggedIn(true);
-                        setCurrentPage('dashboard');
-                    } else {
-                        console.log("App Component useEffect [auth]: No user found, attempting anonymous sign-in.");
-                        window.signInAnonymously(window.auth)
-                            .then(credential => {
-                                setUserId(credential.user.uid);
-                                setIsLoggedIn(true);
-                                setCurrentPage('dashboard');
-                                console.log("App Component useEffect [auth]: Signed in anonymously:", credential.user.uid);
-                            })
-                            .catch(error => {
-                                console.error("App Component useEffect [auth]: Error signing in anonymously:", error);
-                                showNotification("Authentication failed. Data persistence may not work.", 'error');
-                                setCurrentPage('login');
-                            })
-                            .finally(() => {
-                                setIsAuthReady(true);
-                                console.log("App Component useEffect [auth]: Auth process finalized. isAuthReady set to true.");
-                            });
-                    }
-                    if (user) {
-                        setIsAuthReady(true);
-                        console.log("App Component useEffect [auth]: User found. isAuthReady set to true.");
-                    }
-                }, (error) => {
-                    console.error("App Component useEffect [auth]: onAuthStateChanged error:", error);
-                    setIsAuthReady(true);
-                    showNotification("Error during authentication state change.", 'error');
-                });
-
-                // Request notification permission on app load
+            // Request notification permission on app load (runs after initial auth check)
+            useEffect(() => {
                 if ('Notification' in window) {
                     setNotificationPermission(Notification.permission);
                     if (Notification.permission === 'default') {
@@ -279,17 +260,13 @@
                         });
                     }
                 }
-
-                return () => {
-                    console.log("App Component useEffect [auth]: Cleaning up auth listener.");
-                    unsubscribeAuth();
-                }
             }, []);
 
 
             // Effect for loading data from Firestore and setting up real-time listeners
             useEffect(() => {
                 console.log("App Component useEffect [data]: Running data loading effect. isAuthReady:", isAuthReady, "userId:", userId);
+                // Only attempt to set up listeners if auth is ready and we have a userId
                 if (isAuthReady && userId && window.db) {
                     console.log("App Component useEffect [data]: Attempting to set up Firestore listeners for userId:", userId);
                     const userSubjectsCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "subjects");
@@ -374,7 +351,7 @@
 
             // --- Data Manipulation Callbacks (Firestore Integrated) ---
             const addSubject = useCallback(async (subjectName) => {
-                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
                 if (!subjectName) {
                     showNotification('Subject name is required.', 'error');
                     return;
@@ -394,10 +371,11 @@
                 }
             }, [userId, testData, showNotification]);
 
-            const addTest = useCallback(async (subjectName, title, mcqs, date) => {
-                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
-                if (!subjectName || !title || !mcqs || !date) {
-                    showNotification('All test fields are required.', 'error');
+            // Modified addTest to include a 'link' property
+            const addTest = useCallback(async (subjectName, title, mcqs, date, link = '') => { // Added link parameter with default empty string
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
+                if (!title || !mcqs || !date) { // Subject name is handled by calling context
+                    showNotification('All test fields (except link) are required.', 'error');
                     return;
                 }
                 if (!testData.hasOwnProperty(subjectName)) {
@@ -410,7 +388,7 @@
                 }
 
                 try {
-                    const newTest = { title, mcqs: parseInt(mcqs), date };
+                    const newTest = { title, mcqs: parseInt(mcqs), date, link }; // Include link in the newTest object
                     const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
                     
                     const subjectDoc = await window.getDoc(subjectDocRef);
@@ -429,7 +407,7 @@
             }, [userId, testData, showNotification]);
 
             const deleteSubject = useCallback(async (subjectName) => {
-                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
                 if (!testData.hasOwnProperty(subjectName)) {
                     showNotification(`Subject "${subjectName}" not found.`, 'error');
                     return;
@@ -461,7 +439,7 @@
             }, [userId, testData, currentSelectedSubject, currentTimetableSubject, showNotification]);
 
             const deleteTest = useCallback(async (subjectName, testTitle) => {
-                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
                 if (!testData.hasOwnProperty(subjectName) || !testData[subjectName].some(test => test.title === testTitle)) {
                     showNotification(`Test "${testTitle}" not found in ${subjectName}.`, 'error');
                     return;
@@ -508,7 +486,7 @@
             }, [showNotification]);
 
             const addTimetableEntry = useCallback(async (subject, topic, date, time) => {
-                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
                 if (!subject || !topic || !date || !time) {
                     showNotification('All fields for the timetable event are required.', 'error');
                     return;
@@ -547,7 +525,7 @@
             }, [userId, showNotification, notificationPermission]);
 
             const deleteTimetableEntry = useCallback(async (idToDelete) => {
-                if (!userId) { showNotification('Authentication not ready. Please wait.', 'error'); return; }
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
                 try {
                     const timetableEntryDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "timetable", idToDelete);
                     await window.deleteDoc(timetableEntryDocRef);
@@ -568,32 +546,51 @@
                 window.scrollTo(0, 0);
             }, []);
 
-            // --- Auth Logic ---
-            const handleLogin = async () => {
-                console.log("handleLogin: Called.");
-                if (!userId) {
-                    console.log("handleLogin: userId is null, attempting anonymous sign-in.");
-                    try {
-                        const credential = await window.signInAnonymously(window.auth);
-                        setUserId(credential.user.uid);
-                        console.log("handleLogin: Signed in anonymously and set new userId:", credential.user.uid);
-                    } catch (error) {
-                        console.error("handleLogin: Error during anonymous sign-in after manual login attempt:", error);
-                        showNotification("Failed to re-authenticate. Please try refreshing.", 'error');
-                        // Do not proceed with login if auth fails
-                        return;
-                    }
+            // --- Auth Logic (Simulated) ---
+            const handleLogin = (enteredUsername, enteredPassword) => {
+                const correctUsername = "nikhil"; // Your chosen username
+                const correctPassword = "password123"; // Your chosen password
+                const fixedUserId = "nikhil_user_id"; // A fixed user ID for Nikhil's data
+
+                console.log("handleLogin: Attempting login for username:", enteredUsername);
+
+                if (enteredUsername === correctUsername && enteredPassword === correctPassword) {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('userId', fixedUserId);
+                    setUserId(fixedUserId);
+                    setIsLoggedIn(true);
+                    setCurrentPage('dashboard');
+                    showNotification("Logged in successfully!", "success");
+                    console.log("handleLogin: Login successful. userId:", fixedUserId);
+                } else {
+                    showNotification("Invalid username or password.", "error");
+                    console.log("handleLogin: Login failed for username:", enteredUsername);
                 }
-                setIsLoggedIn(true);
-                navigateTo('dashboard');
-                console.log("handleLogin: Setting isLoggedIn to true and navigating to dashboard.");
             };
 
-            const handleLogout = () => {
-                console.log("handleLogout: Setting isLoggedIn to false and navigating to login, clearing userId.");
-                setIsLoggedIn(false);
-                setUserId(null); // Explicitly clear userId on logout
-                navigateTo('login');
+            const handleLogout = async () => {
+                console.log("handleLogout: Initiating logout process.");
+                try {
+                    // Clear local storage for simulated persistent login
+                    localStorage.removeItem('isLoggedIn');
+                    localStorage.removeItem('userId');
+
+                    // If a Firebase auth instance exists, sign it out to clear any active anonymous sessions
+                    // This is good practice even with simulated auth, to clean up any Firebase sessions
+                    // that might have been inadvertently created or persisted.
+                    if (window.auth) {
+                        await window.signOut(window.auth);
+                        console.log("handleLogout: Firebase signOut successful.");
+                    }
+                    
+                    setUserId(null); // Clear userId in state
+                    setIsLoggedIn(false); // Update login status
+                    setCurrentPage('login'); // Redirect to login page
+                    showNotification("Logged out successfully.", "info");
+                } catch (error) {
+                    console.error("handleLogout: Error during signOut or localStorage clear:", error);
+                    showNotification("Failed to log out.", "error");
+                }
             };
 
             // Render Logic based on currentPage and auth readiness
@@ -615,8 +612,14 @@
 
                 switch (currentPage) {
                     case 'login': // Should not be reached if isLoggedIn is true
-                        console.log("renderPage: Unexpectedly rendering LoginPage while isLoggedIn is true.");
-                        return <LoginPage onLogin={handleLogin} />;
+                        console.log("renderPage: Unexpectedly rendering LoginPage while isLoggedIn is true. Redirecting to dashboard.");
+                        setCurrentPage('dashboard'); // Force redirect to dashboard if somehow here when logged in
+                        return <DashboardPage
+                                    testData={testData}
+                                    todayFocusItems={todayFocusItems}
+                                    onEditFocus={() => navigateTo('edit-focus')}
+                                    removeFocusItem={removeFocusItem}
+                                />;
                     case 'dashboard':
                         return <DashboardPage
                                     testData={testData}
@@ -694,14 +697,14 @@
         // LoginPage Component
         const LoginPage = ({ onLogin }) => {
             const { useState } = React;
-            const [email, setEmail] = useState('student@test.com');
-            const [password, setPassword] = useState('password');
+            const [username, setUsername] = useState(''); // Changed to username
+            const [password, setPassword] = useState('');
             console.log("LoginPage: Rendered.");
 
             const handleSubmit = (e) => {
-                e.preventDefault(); // This correctly prevents default form submission
+                e.preventDefault();
                 console.log("LoginPage: Login button clicked.");
-                onLogin();
+                onLogin(username, password); // Pass username and password
             };
 
             return (
@@ -714,8 +717,8 @@
                         </div>
                         <form onSubmit={handleSubmit}>
                             <div className="mb-4">
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <input type="email" id="email" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                                <input type="text" id="username" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your username" value={username} onChange={(e) => setUsername(e.target.value)} />
                             </div>
                             <div className="mb-6">
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
@@ -745,11 +748,24 @@
             );
         };
 
-        // FocusItemCard Component
+        // FocusItemCard Component - now clickable
         const FocusItemCard = ({ item, onRemove }) => {
+            const handleCardClick = () => {
+                if (item.link && item.link.startsWith('http')) {
+                    window.open(item.link, '_blank');
+                } else if (item.link) {
+                    console.warn(`Invalid link for ${item.title}: ${item.link}. Must start with http:// or https://`);
+                    // Optionally show a notification to the user about the invalid link
+                }
+            };
+
             return (
-                <div id={`focus-item-${item.id}`} className="relative flex-shrink-0 w-full bg-[#FEFBF2] p-4 rounded-xl border border-gray-200">
-                    <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 rounded-full p-1" onClick={() => onRemove(item.id)} aria-label="Remove from focus">
+                <div
+                    id={`focus-item-${item.id}`}
+                    className="relative flex-shrink-0 w-full bg-[#FEFBF2] p-4 rounded-xl border border-gray-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+                    onClick={handleCardClick}
+                >
+                    <button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 rounded-full p-1" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3">
@@ -885,7 +901,6 @@
         };
 
         // TimetableEventCard Component
-        // Renamed prop from 'event' to 'events' for clarity as it receives an array
         const TimetableEventCard = ({ events, isEditMode, onDelete }) => {
             // Sort events by time within each date group
             const sortedEvents = [...events].sort((a, b) => a.time.localeCompare(b.time));
@@ -1035,17 +1050,31 @@
             );
         };
 
-        // TestCard Component
+        // TestCard Component - now clickable
         const TestCard = ({ test, subject, isEditMode, onDelete }) => {
+            const handleCardClick = () => {
+                if (!isEditMode && test.link && test.link.startsWith('http')) {
+                    window.open(test.link, '_blank');
+                } else if (!isEditMode && test.link) {
+                    console.warn(`Invalid link for ${test.title}: ${test.link}. Must start with http:// or https://`);
+                    // Optionally show a notification to the user about the invalid link
+                }
+            };
+
             return (
-                <div id={`trophy-test-item-${subject}-${test.title}`} className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
+                <div
+                    id={`trophy-test-item-${subject}-${test.title}`}
+                    className={`bg-gray-100 p-4 rounded-lg flex justify-between items-center ${test.link && !isEditMode ? 'cursor-pointer hover:shadow-md transition-shadow duration-200' : ''}`}
+                    onClick={handleCardClick}
+                >
                     <div>
                         <h4 className="font-semibold text-gray-800">{test.title}</h4>
                         <p className="text-sm text-gray-500 mt-1">{test.mcqs} MCQs</p>
                         <p className="text-xs text-gray-400 mt-1">Completed on {test.date}</p>
+                        {/* The explicit "View Test" link is now removed, as the whole card is clickable */}
                     </div>
                     {isEditMode ? (
-                        <button className="delete-trophy-test-btn text-red-500 hover:text-red-700 px-2 py-1 rounded-full text-sm font-medium" onClick={() => onDelete(subject, test.title)}>Delete</button>
+                        <button className="delete-trophy-test-btn text-red-500 hover:text-red-700 px-2 py-1 rounded-full text-sm font-medium" onClick={(e) => { e.stopPropagation(); onDelete(subject, test.title); }}>Delete</button>
                     ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     )}
@@ -1061,12 +1090,14 @@
             const [newTestTitle, setNewTestTitle] = useState('');
             const [newTestMcqs, setNewTestMcqs] = useState('');
             const [newTestDate, setNewTestDate] = useState('');
+            const [newTestLink, setNewTestLink] = useState(''); // New state for the link
 
             const handleAddTest = () => {
-                addTest(currentSelectedSubject, newTestTitle, newTestMcqs, newTestDate);
+                addTest(currentSelectedSubject, newTestTitle, newTestMcqs, newTestDate, newTestLink); // Pass newTestLink
                 setNewTestTitle('');
                 setNewTestMcqs('');
                 setNewTestDate('');
+                setNewTestLink(''); // Clear link after adding
             };
 
             const subjects = Object.keys(testData);
@@ -1115,6 +1146,11 @@
                             <div className="mb-4">
                                 <label htmlFor="new-trophy-test-date" className="block text-sm font-medium text-gray-700 mb-1">Completion Date</label>
                                 <input type="date" id="new-trophy-test-date" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
+                            </div>
+                            {/* New Test Link Input */}
+                            <div className="mb-4">
+                                <label htmlFor="new-trophy-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
+                                <input type="url" id="new-trophy-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
                             </div>
                             <button onClick={handleAddTest} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
                                 Add Test
@@ -1228,6 +1264,9 @@
                             tests.map(test => (
                                 <div key={test.title} className="flex justify-between items-center bg-white p-3 rounded-md border border-gray-200 text-sm">
                                     <span>{test.title} ({test.mcqs} MCQs, {test.date})</span>
+                                    {test.link && (
+                                        <a href={test.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs ml-2" onClick={(e) => e.stopPropagation()}>Link</a>
+                                    )}
                                     <button onClick={() => onDeleteTest(subjectName, test.title)} className="delete-test-btn text-red-500 hover:text-red-700 font-medium ml-2">Delete</button>
                                 </div>
                             ))
@@ -1245,6 +1284,7 @@
             const [newTestTitle, setNewTestTitle] = useState('');
             const [newTestMcqs, setNewTestMcqs] = useState('');
             const [newTestDate, setNewTestDate] = useState('');
+            const [newTestLink, setNewTestLink] = useState(''); // New state for the link
 
             const handleAddSubject = () => {
                 addSubject(newSubjectName);
@@ -1252,10 +1292,11 @@
             };
 
             const handleAddTest = () => {
-                addTest(selectedSubjectForTest, newTestTitle, newTestMcqs, newTestDate);
+                addTest(selectedSubjectForTest, newTestTitle, newTestMcqs, newTestDate, newTestLink); // Pass newTestLink
                 setNewTestTitle('');
                 setNewTestMcqs('');
                 setNewTestDate('');
+                setNewTestLink(''); // Clear link after adding
             };
 
             const subjects = Object.keys(testData);
@@ -1301,6 +1342,11 @@
                             <label htmlFor="new-test-date" className="block text-sm font-medium text-gray-700 mb-1">Completion Date</label>
                             <input type="date" id="new-test-date" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
                         </div>
+                         {/* New Test Link Input */}
+                        <div className="mb-4">
+                            <label htmlFor="new-manage-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
+                            <input type="url" id="new-manage-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
+                        </div>
                         <button onClick={handleAddTest} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300">
                             Add Test
                         </button>
@@ -1328,6 +1374,10 @@
 
         // ProfilePage Component
         const ProfilePage = ({ onManageContent, onLogout, currentUserId }) => {
+            // Hardcoded name and email as per user's request
+            const userName = "Nikhil";
+            const userEmail = "nikhil.student@example.com";
+
             return (
                 <div id="page-profile" className="page px-6 py-8">
                     <header className="flex items-center justify-between mb-6">
@@ -1337,8 +1387,8 @@
                     <div className="flex items-center gap-4 bg-gray-100 p-4 rounded-xl mb-8">
                         <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=AV" alt="User Avatar" className="w-16 h-16 rounded-full" />
                         <div>
-                            <h2 className="font-bold text-xl text-gray-800">Alex Morgan</h2>
-                            <p className="text-gray-500">alex.morgan@email.com</p>
+                            <h2 className="font-bold text-xl text-gray-800">{userName}</h2>
+                            <p className="text-gray-500">{userEmail}</p>
                             <p className="text-sm text-gray-600 break-all">User ID: {currentUserId || 'Not authenticated'}</p> {/* Display User ID */}
                         </div>
                     </div>
@@ -1349,7 +1399,7 @@
                             <span className="font-medium">Edit Profile</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </a>
-                        <a href="#" className="flex justify-between items-center p-4 bg-gray-100 rounded-lg">
+                        <a href="#" className="flex justify-between items-围绕 items-center p-4 bg-gray-100 rounded-lg">
                             <span className="font-medium">Subscription</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
                         </a>
