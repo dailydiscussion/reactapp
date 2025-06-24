@@ -75,7 +75,7 @@
         // Only import what's needed for this setup (signOut for logout simulation)
         import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         // Import all necessary Firestore functions, including addDoc for focus items
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs, addDoc, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // IMPORTANT: Your actual Firebase project configuration
         // Replace with the config from your Firebase project settings
@@ -101,7 +101,7 @@
             window.auth = auth;
             window.signOut = signOut; // Expose signOut
 
-            // Expose ALL necessary Firestore specific functions, including addDoc
+            // Expose ALL necessary Firestore specific functions, including addDoc and where
             window.doc = doc;
             window.setDoc = setDoc;
             window.deleteDoc = deleteDoc;
@@ -111,6 +111,7 @@
             window.getDoc = getDoc;
             window.getDocs = getDocs;
             window.addDoc = addDoc; // Expose addDoc
+            window.where = where; // Expose where for queries
 
             // Set up global __app_id for data paths
             window.__app_id = firebaseConfig.projectId;
@@ -221,18 +222,18 @@
             const [notificationPermission, setNotificationPermission] = useState('default'); // 'granted', 'denied', 'default'
             const [userId, setUserId] = useState(null); // State to store the authenticated user ID
             const [isAuthReady, setIsAuthReady] = useState(false); // To track if auth state is determined
+            const [isLoading, setIsLoading] = useState(true); // New: Loading state for data
             const [testData, setTestData] = useState({}); // Start empty, let Firestore populate
             const [todayFocusItems, setTodayFocusItems] = useState([]); // Now loaded from Firestore
             const [timetableEntries, setTimetableEntries] = useState([]); // Start empty, let Firestore populate
             const [currentSelectedSubject, setCurrentSelectedSubject] = useState(''); // For TestsCompletedPage
             const [currentTimetableSubject, setCurrentTimetableSubject] = useState(''); // For TimetablePage progress
 
-            console.log("App Component: Rendered. CurrentPage:", currentPage, "isLoggedIn:", isLoggedIn, "isAuthReady:", isAuthReady, "userId:", userId);
+            console.log("App Component: Rendered. CurrentPage:", currentPage, "isLoggedIn:", isLoggedIn, "isAuthReady:", isAuthReady, "userId:", userId, "isLoading:", isLoading);
 
             // --- App Initialization and Persistence Check ---
             useEffect(() => {
                 console.log("App Component useEffect [init]: Checking for persistent login.");
-                // Check local storage for a logged-in state
                 const storedLoggedIn = localStorage.getItem('isLoggedIn');
                 const storedUserId = localStorage.getItem('userId');
 
@@ -242,11 +243,12 @@
                     setCurrentPage('dashboard');
                     console.log("App Component useEffect [init]: Found persistent login for userId:", storedUserId);
                 } else {
-                    // No persistent login found, ensure we start at the login page
                     setIsLoggedIn(false);
                     setUserId(null);
                     setCurrentPage('login');
-                    console.log("App Component useEffect [init]: No persistent login found, starting at login page.");
+                    // If not logged in, no data to load, so stop loading
+                    setIsLoading(false); 
+                    console.log("App Component useEffect [init]: No persistent login found, starting at login page. Set isLoading to false.");
                 }
                 setIsAuthReady(true); // Authentication state (simulated) is now determined
             }, []); // Empty dependency array means this runs once on mount
@@ -267,14 +269,25 @@
             // Effect for loading data from Firestore and setting up real-time listeners
             useEffect(() => {
                 console.log("App Component useEffect [data]: Running data loading effect. isAuthReady:", isAuthReady, "userId:", userId);
-                // Only attempt to set up listeners if auth is ready and we have a userId
+                let unsubscribeFunctions = [];
+
                 if (isAuthReady && userId && window.db) {
                     console.log("App Component useEffect [data]: Attempting to set up Firestore listeners for userId:", userId);
                     const userSubjectsCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "subjects");
                     const userTimetableCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "timetable");
-                    // New: Reference for Today's Focus items
                     const userTodayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
 
+                    // Keep a counter of expected data loads
+                    let loadedCount = 0;
+                    const expectedLoads = 3; // subjects, timetable, todayFocus
+
+                    const checkAllLoaded = () => {
+                        loadedCount++;
+                        if (loadedCount === expectedLoads) {
+                            setIsLoading(false); // All data streams have provided their initial snapshot
+                            console.log("All data streams loaded. Loading screen dismissed.");
+                        }
+                    };
 
                     // Listen for real-time updates to subjects (testData)
                     const unsubscribeSubjects = window.onSnapshot(userSubjectsCollectionRef, (snapshot) => {
@@ -294,14 +307,19 @@
                                 setCurrentTimetableSubject(Object.keys(loadedTestData)[0]); // Set default if none or invalid
                             }
                         } else {
-                            setCurrentSelectedSubject(''); // No subjects, clear selection
-                            setCurrentTimetableSubject(''); // No subjects, clear selection
-                            showNotification("No subjects found. Add new subjects to get started!", 'info');
+                            // Only show this notification once during initial load if no subjects.
+                            if (isLoading) { // Check if we are still in initial loading phase
+                                showNotification("No subjects found. Add new subjects to get started!", 'info');
+                            }
                         }
+                        checkAllLoaded(); // Indicate that this stream has loaded
                     }, (error) => {
                         console.error("App Component useEffect [data]: Error listening to subjects data:", error);
                         showNotification("Failed to load subjects data.", 'error');
+                        checkAllLoaded(); // Still indicate loaded to not get stuck on loading screen
                     });
+                    unsubscribeFunctions.push(unsubscribeSubjects);
+
 
                     // Listen for real-time updates to timetable entries
                     const unsubscribeTimetable = window.onSnapshot(userTimetableCollectionRef, (snapshot) => {
@@ -312,10 +330,13 @@
                         }));
                         setTimetableEntries(loadedTimetableEntries);
                         console.log("Timetable data loaded/updated from Firestore:", loadedTimetableEntries);
+                        checkAllLoaded(); // Indicate that this stream has loaded
                     }, (error) => {
                         console.error("App Component useEffect [data]: Error listening to timetable data:", error);
                         showNotification("Failed to load timetable data.", 'error');
+                        checkAllLoaded(); // Still indicate loaded to not get stuck on loading screen
                     });
+                    unsubscribeFunctions.push(unsubscribeTimetable);
 
                     // New: Listen for real-time updates to Today's Focus items
                     const unsubscribeTodayFocus = window.onSnapshot(userTodayFocusCollectionRef, (snapshot) => {
@@ -326,25 +347,27 @@
                         }));
                         setTodayFocusItems(loadedFocusItems);
                         console.log("Today's Focus data loaded/updated from Firestore:", loadedFocusItems);
+                        checkAllLoaded(); // Indicate that this stream has loaded
                     }, (error) => {
                         console.error("App Component useEffect [data]: Error listening to Today's Focus data:", error);
                         showNotification("Failed to load Today's Focus data.", 'error');
+                        checkAllLoaded(); // Still indicate loaded to not get stuck on loading screen
                     });
-
+                    unsubscribeFunctions.push(unsubscribeTodayFocus);
 
                     // Cleanup listeners on unmount or userId change
                     return () => {
                         console.log("App Component useEffect [data]: Cleaning up Firestore listeners.");
-                        unsubscribeSubjects();
-                        unsubscribeTimetable();
-                        unsubscribeTodayFocus(); // New: Cleanup Today's Focus listener
+                        unsubscribeFunctions.forEach(unsub => unsub());
                     };
                 } else if (isAuthReady && !userId) {
-                    console.log("App Component useEffect [data]: Auth ready, but no user ID. Not setting up Firestore listeners.");
+                    console.log("App Component useEffect [data]: Auth ready, but no user ID. Not setting up Firestore listeners. Setting isLoading to false.");
+                    setIsLoading(false); // No data to load if not logged in
                 } else if (!isAuthReady) {
-                    console.log("App Component useEffect [data]: Auth not yet ready. Deferring Firestore listener setup.");
+                    console.log("App Component useEffect [data]: Auth not yet ready. Keeping isLoading true.");
+                    setIsLoading(true); // Keep loading true until auth is ready
                 }
-            }, [isAuthReady, userId, currentSelectedSubject, currentTimetableSubject]); // Added subject states to dependencies
+            }, [isAuthReady, userId, currentSelectedSubject, currentTimetableSubject, showNotification, isLoading]); // Added isLoading to dependencies
 
             // Effect to hide notification automatically
             useEffect(() => {
@@ -359,15 +382,6 @@
             const showNotification = useCallback((message, type = 'info') => {
                 setNotification({ message, type, visible: true });
             }, []);
-
-            // --- Utility Functions ---
-            const getRandomChange = () => {
-                const isPositive = Math.random() > 0.5;
-                const value = Math.floor(Math.random() * 5) + 1;
-                const colorClass = isPositive ? 'text-green-500' : 'text-red-500';
-                const sign = isPositive ? '+' : '-';
-                return `<span class="${colorClass} text-lg font-semibold">${sign}${value}</span>`;
-            };
 
             // --- Data Manipulation Callbacks (Firestore Integrated) ---
             const addSubject = useCallback(async (subjectName) => {
@@ -441,6 +455,7 @@
                     setTodayFocusItems(prevItems => prevItems.filter(item => item.subject !== subjectName));
                     // Also delete focus items from Firestore related to this subject
                     const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+                    // Use query and getDocs to find and delete multiple documents
                     const q = window.query(todayFocusCollectionRef, window.where("subject", "==", subjectName));
                     const snapshot = await window.getDocs(q);
                     snapshot.forEach(async (doc) => {
@@ -508,8 +523,13 @@
             // Updated addFocusItem to save to Firestore
             const addFocusItem = useCallback(async (testToAdd, subjectName) => {
                 if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
-                const newItemId = `${subjectName}-${testToAdd.title}`; // Still use for local check, but Firestore generates ID
-                const existingItem = todayFocusItems.find(item => item.id === newItemId || (item.subject === subjectName && item.title === testToAdd.title));
+                // Check if the item is already present in the local state, considering both ID (if from Firestore)
+                // and the subject/title combination (if not yet in Firestore or when matching new items)
+                const existingItem = todayFocusItems.find(item => 
+                    (item.id === testToAdd.id && testToAdd.id !== `${subjectName}-${testToAdd.title}`) || // If testToAdd already has a Firestore ID
+                    (item.subject === subjectName && item.title === testToAdd.title) // Fallback for new items
+                );
+
 
                 if (existingItem) {
                     showNotification(`"${testToAdd.title}" is already in Today's Focus.`, 'info');
@@ -660,12 +680,13 @@
 
             // Render Logic based on currentPage and auth readiness
             const renderPage = () => {
-                console.log("renderPage: isAuthReady:", isAuthReady, "currentPage:", currentPage, "isLoggedIn:", isLoggedIn);
-                if (!isAuthReady) {
+                console.log("renderPage: isAuthReady:", isAuthReady, "currentPage:", currentPage, "isLoggedIn:", isLoggedIn, "isLoading:", isLoading);
+                // Display loading screen if auth is not ready OR if data is still loading
+                if (!isAuthReady || isLoading) {
                     return (
-                        <div className="flex flex-col items-center justify-center min-h-screen">
-                            <svg className="animate-spin h-8 w-8 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <p className="text-gray-600">Loading application...</p>
+                        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+                            <svg className="animate-spin h-10 w-10 text-blue-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <p className="text-gray-600 font-medium">Loading your dashboard...</p>
                         </div>
                     );
                 }
@@ -801,14 +822,58 @@
             );
         };
 
-        // StatCard Component
-        const StatCard = ({ title, value, unit, change, icon }) => {
+        // Greeting Component (New)
+        const Greeting = ({ userName }) => {
+            const { useState, useEffect } = React;
+            const [greetingText, setGreetingText] = useState('');
+            const [greetingEmoji, setGreetingEmoji] = useState('');
+
+            useEffect(() => {
+                const updateGreeting = () => {
+                    const hour = new Date().getHours();
+                    let text = '';
+                    let emoji = '';
+
+                    if (hour >= 5 && hour < 12) {
+                        text = 'Good morning';
+                        emoji = '☀️';
+                    } else if (hour >= 12 && hour < 17) {
+                        text = 'Good afternoon';
+                        emoji = '👋';
+                    } else if (hour >= 17 && hour < 22) {
+                        text = 'Good evening';
+                        emoji = '🌆';
+                    } else {
+                        text = 'Time to sleep';
+                        emoji = '😴';
+                    }
+                    setGreetingText(text);
+                    setGreetingEmoji(emoji);
+                };
+
+                updateGreeting(); // Set initial greeting
+                const intervalId = setInterval(updateGreeting, 60 * 1000); // Update every minute
+                return () => clearInterval(intervalId); // Cleanup interval on unmount
+            }, []);
+
             return (
-                <div className="bg-[#FEFBF2] p-4 rounded-xl">
+                <div className="mb-6">
+                    <p className="text-2xl font-light text-gray-500 flex items-center">
+                        {greetingText}
+                    </p>
+                    <p className="text-4xl font-bold text-gray-900">Dear {userName}<span className="ml-1 text-4xl">{greetingEmoji}</span></p>
+                </div>
+            );
+        };
+
+
+        // StatCard Component - 'unit' and 'title' removed
+        const StatCard = ({ category, value, icon }) => {
+            return (
+                <div className="bg-[#FEFBF2] p-4 rounded-xl flex flex-col items-center justify-center text-center">
                     {icon}
-                    <p className="text-sm text-gray-600">{unit}</p>
-                    <p className="text-3xl font-bold mt-1">{value} {change}</p>
-                    <p className="text-xs text-gray-400 mt-2">{title}</p>
+                    <p className="text-3xl font-bold mt-2">{value}</p>
+                    <p className="text-sm text-gray-600 mt-1">{category}</p>
                 </div>
             );
         };
@@ -845,77 +910,66 @@
             );
         };
 
-        // DashboardPage Component
+        // DashboardPage Component - Stat calculations updated
         const DashboardPage = ({ testData, todayFocusItems, onEditFocus, removeFocusItem }) => {
-            const { useState, useEffect, useCallback } = React;
+            const { useState, useEffect } = React;
             const [stats, setStats] = useState({ days: 0, mcqs: 0, tests: 0, subjects: 0 });
 
-            const getRandomChange = useCallback(() => {
-                const isPositive = Math.random() > 0.5;
-                const value = Math.floor(Math.random() * 5) + 1;
-                const colorClass = isPositive ? 'text-green-500' : 'text-red-500';
-                const sign = isPositive ? '+' : '-';
-                return `<span class="${colorClass} text-lg font-semibold">${sign}${value}</span>`;
-            }, []);
-
             useEffect(() => {
-                let totalDays = new Set();
+                let uniqueDates = new Set();
                 let totalMCQs = 0;
                 let totalTests = 0;
-                let totalSubjects = new Set();
+                let uniqueSubjects = new Set();
 
                 for (const subject in testData) {
                     if (testData.hasOwnProperty(subject)) {
-                        totalSubjects.add(subject);
+                        if (testData[subject].length > 0) { // Only count subjects that have at least one test
+                            uniqueSubjects.add(subject);
+                        }
                         testData[subject].forEach(test => {
                             totalTests++;
                             totalMCQs += test.mcqs;
-                            totalDays.add(test.date);
+                            uniqueDates.add(test.date); // Add date to count unique days
                         });
                     }
                 }
                 setStats({
-                    days: totalDays.size,
+                    days: uniqueDates.size,
                     mcqs: totalMCQs,
                     tests: totalTests,
-                    subjects: totalSubjects.size
+                    subjects: uniqueSubjects.size
                 });
             }, [testData]);
 
             return (
                 <div id="page-dashboard" className="page px-6 py-8">
+                    {/* New Greeting Component added here */}
+                    <Greeting userName="Nikhil" />
+
                     <header className="flex items-center justify-between mb-2">
                         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-900"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
                     </header>
-                    <p className="text-gray-500 mb-8">Performance Overview</p>
+                    <p className="text-gray-500 mb-8">Overall Performance</p>
                     <div className="grid grid-cols-2 gap-4 mb-10">
                         <StatCard
-                            unit="Days"
+                            category="Days"
                             value={stats.days}
-                            change={<span dangerouslySetInnerHTML={{ __html: getRandomChange() }} />}
-                            title="v/s last 7 days"
                             icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-gray-600"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>}
                         />
                         <StatCard
-                            unit="MCQs"
+                            category="MCQs"
                             value={stats.mcqs}
-                            change={<span dangerouslySetInnerHTML={{ __html: getRandomChange() }} />}
-                            title="v/s last 7 days"
                             icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-gray-600"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path></svg>}
                         />
                         <StatCard
-                            unit="Tests"
+                            category="Tests"
                             value={stats.tests}
-                            change={<span dangerouslySetInnerHTML={{ __html: getRandomChange() }} />}
-                            title="v/s last 7 days"
                             icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-gray-600"><path d="M17 3a2.828 2 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>}
                         />
                         <StatCard
-                            unit="Subjects"
-                            value={`${stats.subjects}/${Object.keys(testData).length}`}
-                            change={<span dangerouslySetInnerHTML={{ __html: getRandomChange() }} />}
-                            title="v/s last 7 days"
+                            category="Subjects"
+                            value={stats.subjects}
                             icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-2 text-gray-600"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>}
                         />
                     </div>
@@ -1238,7 +1292,7 @@
 
         // AvailableTestCard for EditFocusPage
         const AvailableTestCard = ({ test, subject, isAdded, onAdd, onRemove }) => {
-            const itemId = `${subject}-${test.title}`;
+            const itemId = `${subject}-${test.title}`; // This is a temporary ID for non-Firestore items in `allTests`
             const buttonText = isAdded ? 'Added' : 'Add';
             const buttonClasses = isAdded ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600';
             const itemOpacity = isAdded ? 'opacity-50' : '';
@@ -1251,7 +1305,7 @@
                     </div>
                     <button
                         className={`text-white px-3 py-1 rounded-full text-sm transition duration-200 ${buttonClasses}`}
-                        onClick={() => isAdded ? onRemove(test.id) : onAdd(test, subject)} // Use test.id if available from Firestore, else fall back to local itemId
+                        onClick={() => isAdded ? onRemove(test.id) : onAdd(test, subject)} // Use test.id for removal (Firestore ID)
                         disabled={isAdded}
                     >
                         {buttonText}
@@ -1264,6 +1318,8 @@
         // EditFocusPage Component
         const EditFocusPage = ({ testData, todayFocusItems, addFocusItem, removeFocusItem, onBackToDashboard }) => {
             const { useState } = React;
+            // Generate a temporary 'id' for items from testData that don't have a Firestore ID yet
+            // This 'id' is only for client-side React keying and comparison before it hits Firestore
             const allTests = Object.keys(testData).flatMap(subject =>
                 testData[subject].map(test => ({ ...test, subject, id: `${subject}-${test.title}` }))
             );
@@ -1281,10 +1337,10 @@
                         ) : (
                             allTests.map(test => (
                                 <AvailableTestCard
-                                    key={test.id}
+                                    key={test.id} // Use the generated local id for React keying
                                     test={test}
                                     subject={test.subject}
-                                    // Check if the item already exists in todayFocusItems by its unique identifier (Firestore ID if available, else subject-title combo)
+                                    // Check if the item is already in todayFocusItems by its Firestore-generated ID OR by its subject/title combo
                                     isAdded={todayFocusItems.some(item => item.id === test.id || (item.subject === test.subject && item.title === test.title))}
                                     onAdd={addFocusItem}
                                     onRemove={removeFocusItem}
