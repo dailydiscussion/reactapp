@@ -74,8 +74,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         // Only import what's needed for this setup (signOut for logout simulation)
         import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        // Import all necessary Firestore functions
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        // Import all necessary Firestore functions, including addDoc for focus items
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // IMPORTANT: Your actual Firebase project configuration
         // Replace with the config from your Firebase project settings
@@ -101,7 +101,7 @@
             window.auth = auth;
             window.signOut = signOut; // Expose signOut
 
-            // Expose ALL necessary Firestore specific functions
+            // Expose ALL necessary Firestore specific functions, including addDoc
             window.doc = doc;
             window.setDoc = setDoc;
             window.deleteDoc = deleteDoc;
@@ -110,6 +110,7 @@
             window.query = query;
             window.getDoc = getDoc;
             window.getDocs = getDocs;
+            window.addDoc = addDoc; // Expose addDoc
 
             // Set up global __app_id for data paths
             window.__app_id = firebaseConfig.projectId;
@@ -221,7 +222,7 @@
             const [userId, setUserId] = useState(null); // State to store the authenticated user ID
             const [isAuthReady, setIsAuthReady] = useState(false); // To track if auth state is determined
             const [testData, setTestData] = useState({}); // Start empty, let Firestore populate
-            const [todayFocusItems, setTodayFocusItems] = useState([]); // Start empty, let Firestore populate
+            const [todayFocusItems, setTodayFocusItems] = useState([]); // Now loaded from Firestore
             const [timetableEntries, setTimetableEntries] = useState([]); // Start empty, let Firestore populate
             const [currentSelectedSubject, setCurrentSelectedSubject] = useState(''); // For TestsCompletedPage
             const [currentTimetableSubject, setCurrentTimetableSubject] = useState(''); // For TimetablePage progress
@@ -271,6 +272,9 @@
                     console.log("App Component useEffect [data]: Attempting to set up Firestore listeners for userId:", userId);
                     const userSubjectsCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "subjects");
                     const userTimetableCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "timetable");
+                    // New: Reference for Today's Focus items
+                    const userTodayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+
 
                     // Listen for real-time updates to subjects (testData)
                     const unsubscribeSubjects = window.onSnapshot(userSubjectsCollectionRef, (snapshot) => {
@@ -313,11 +317,27 @@
                         showNotification("Failed to load timetable data.", 'error');
                     });
 
+                    // New: Listen for real-time updates to Today's Focus items
+                    const unsubscribeTodayFocus = window.onSnapshot(userTodayFocusCollectionRef, (snapshot) => {
+                        console.log("App Component useEffect [data]: Today's Focus snapshot received.");
+                        const loadedFocusItems = snapshot.docs.map(doc => ({
+                            id: doc.id, // Store Firestore document ID as item ID
+                            ...doc.data()
+                        }));
+                        setTodayFocusItems(loadedFocusItems);
+                        console.log("Today's Focus data loaded/updated from Firestore:", loadedFocusItems);
+                    }, (error) => {
+                        console.error("App Component useEffect [data]: Error listening to Today's Focus data:", error);
+                        showNotification("Failed to load Today's Focus data.", 'error');
+                    });
+
+
                     // Cleanup listeners on unmount or userId change
                     return () => {
                         console.log("App Component useEffect [data]: Cleaning up Firestore listeners.");
                         unsubscribeSubjects();
                         unsubscribeTimetable();
+                        unsubscribeTodayFocus(); // New: Cleanup Today's Focus listener
                     };
                 } else if (isAuthReady && !userId) {
                     console.log("App Component useEffect [data]: Auth ready, but no user ID. Not setting up Firestore listeners.");
@@ -417,7 +437,16 @@
                     const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
                     await window.deleteDoc(subjectDocRef);
                     
+                    // Filter focus items by subject when a subject is deleted
                     setTodayFocusItems(prevItems => prevItems.filter(item => item.subject !== subjectName));
+                    // Also delete focus items from Firestore related to this subject
+                    const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+                    const q = window.query(todayFocusCollectionRef, window.where("subject", "==", subjectName));
+                    const snapshot = await window.getDocs(q);
+                    snapshot.forEach(async (doc) => {
+                        await window.deleteDoc(window.doc(todayFocusCollectionRef, doc.id));
+                    });
+
 
                     const remainingSubjects = Object.keys(testData).filter(sub => sub !== subjectName);
                     if (currentSelectedSubject === subjectName && remainingSubjects.length > 0) {
@@ -453,6 +482,18 @@
                         const currentTests = subjectDoc.data().tests || [];
                         const updatedTests = currentTests.filter(test => test.title !== testTitle);
                         await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
+                        
+                        // Also delete this specific test from Today's Focus in Firestore
+                        const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+                        const q = window.query(todayFocusCollectionRef, 
+                            window.where("subject", "==", subjectName),
+                            window.where("title", "==", testTitle)
+                        );
+                        const snapshot = await window.getDocs(q);
+                        snapshot.forEach(async (doc) => {
+                            await window.deleteDoc(window.doc(todayFocusCollectionRef, doc.id));
+                        });
+                        
                         setTodayFocusItems(prevItems => prevItems.filter(item => !(item.subject === subjectName && item.title === testTitle)));
                         showNotification(`Test "${testTitle}" deleted from "${subjectName}".`, 'success');
                     } else {
@@ -464,26 +505,50 @@
                 }
             }, [userId, testData, showNotification]);
 
-            const addFocusItem = useCallback((testToAdd, subjectName) => {
-                const newItemId = `${subjectName}-${testToAdd.title}`;
-                const existingItem = todayFocusItems.find(item => item.id === newItemId);
+            // Updated addFocusItem to save to Firestore
+            const addFocusItem = useCallback(async (testToAdd, subjectName) => {
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
+                const newItemId = `${subjectName}-${testToAdd.title}`; // Still use for local check, but Firestore generates ID
+                const existingItem = todayFocusItems.find(item => item.id === newItemId || (item.subject === subjectName && item.title === testToAdd.title));
 
-                if (!existingItem) {
-                    const iconPath = "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"; // Default icon path
-                    setTodayFocusItems(prevItems => [
-                        ...prevItems,
-                        { ...testToAdd, id: newItemId, subject: subjectName, type: "Custom", iconPath: testToAdd.iconPath || iconPath }
-                    ]);
-                    showNotification(`Added "${testToAdd.title}" to Today's Focus.`, 'success');
-                } else {
+                if (existingItem) {
                     showNotification(`"${testToAdd.title}" is already in Today's Focus.`, 'info');
+                    return;
                 }
-            }, [todayFocusItems, showNotification]);
 
-            const removeFocusItem = useCallback((itemId) => {
-                setTodayFocusItems(prevItems => prevItems.filter(item => item.id !== itemId));
-                showNotification('Focus item removed.', 'success');
-            }, [showNotification]);
+                try {
+                    const iconPath = "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"; // Default icon path
+                    const focusItemData = { 
+                        title: testToAdd.title, 
+                        mcqs: testToAdd.mcqs, 
+                        date: testToAdd.date, 
+                        link: testToAdd.link || '', // Ensure link is saved
+                        subject: subjectName, 
+                        type: "Custom", 
+                        iconPath: testToAdd.iconPath || iconPath 
+                    };
+                    
+                    const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+                    await window.addDoc(todayFocusCollectionRef, focusItemData);
+                    showNotification(`Added "${testToAdd.title}" to Today's Focus.`, 'success');
+                } catch (error) {
+                    console.error("Error adding focus item:", error);
+                    showNotification(`Failed to add "${testToAdd.title}" to Today's Focus.`, 'error');
+                }
+            }, [userId, todayFocusItems, showNotification]);
+
+            // Updated removeFocusItem to delete from Firestore
+            const removeFocusItem = useCallback(async (itemId) => {
+                if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
+                try {
+                    const todayFocusItemDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus", itemId);
+                    await window.deleteDoc(todayFocusItemDocRef);
+                    showNotification('Focus item removed.', 'success');
+                } catch (error) {
+                    console.error("Error removing focus item:", error);
+                    showNotification("Failed to remove focus item.", 'error');
+                }
+            }, [userId, showNotification]);
 
             const addTimetableEntry = useCallback(async (subject, topic, date, time) => {
                 if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
@@ -1055,7 +1120,7 @@
             const handleCardClick = () => {
                 if (!isEditMode && test.link && test.link.startsWith('http')) {
                     window.open(test.link, '_blank');
-                } else if (!isEditMode && test.link) {
+                } else if (test.link) {
                     console.warn(`Invalid link for ${test.title}: ${test.link}. Must start with http:// or https://`);
                     // Optionally show a notification to the user about the invalid link
                 }
@@ -1186,7 +1251,7 @@
                     </div>
                     <button
                         className={`text-white px-3 py-1 rounded-full text-sm transition duration-200 ${buttonClasses}`}
-                        onClick={() => isAdded ? onRemove(itemId) : onAdd(test, subject)}
+                        onClick={() => isAdded ? onRemove(test.id) : onAdd(test, subject)} // Use test.id if available from Firestore, else fall back to local itemId
                         disabled={isAdded}
                     >
                         {buttonText}
@@ -1219,7 +1284,8 @@
                                     key={test.id}
                                     test={test}
                                     subject={test.subject}
-                                    isAdded={todayFocusItems.some(item => item.id === test.id)}
+                                    // Check if the item already exists in todayFocusItems by its unique identifier (Firestore ID if available, else subject-title combo)
+                                    isAdded={todayFocusItems.some(item => item.id === test.id || (item.subject === test.subject && item.title === test.title))}
                                     onAdd={addFocusItem}
                                     onRemove={removeFocusItem}
                                 />
