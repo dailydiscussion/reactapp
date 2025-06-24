@@ -73,7 +73,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // IMPORTANT: Your actual Firebase project configuration provided by the user
         const firebaseConfig = {
@@ -87,40 +87,43 @@
         };
 
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
+        try {
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
 
-        // Expose Firebase objects and functions globally for React components
-        window.firebaseApp = app;
-        window.db = db;
-        window.auth = auth;
-        window.onAuthStateChanged = onAuthStateChanged;
-        window.signInAnonymously = signInAnonymously;
-        window.doc = doc;
-        window.setDoc = setDoc;
-        window.deleteDoc = deleteDoc;
-        window.onSnapshot = onSnapshot;
-        window.collection = collection;
-        window.query = query;
-        window.getDocs = getDocs;
+            // Expose Firebase objects and functions globally for React components
+            window.firebaseApp = app;
+            window.db = db;
+            window.auth = auth;
+            window.onAuthStateChanged = onAuthStateChanged;
+            window.signInAnonymously = signInAnonymously;
+            window.doc = doc;
+            window.setDoc = setDoc;
+            window.deleteDoc = deleteDoc;
+            window.onSnapshot = onSnapshot;
+            window.collection = collection;
+            window.query = query;
+            window.getDoc = getDoc;
+            window.getDocs = getDocs;
 
-        // Set up global __app_id for data paths
-        window.__app_id = firebaseConfig.projectId; // Using project ID as the app ID for storage paths
+            // Set up global __app_id for data paths
+            window.__app_id = firebaseConfig.projectId;
 
-        // Initial authentication check
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                try {
-                    await signInAnonymously(auth);
-                    console.log("Signed in anonymously to Firebase.");
-                } catch (error) {
-                    console.error("Error signing in anonymously:", error);
-                }
-            } else {
-                console.log("Firebase user is logged in:", user.uid);
-            }
-        });
+            // Initial authentication check - this will be handled by React App component's useEffect
+            console.log("Firebase SDKs initialized successfully in script module.");
+
+        } catch (error) {
+            console.error("Error initializing Firebase SDKs:", error);
+            // Optionally display a global error message if Firebase init fails completely
+            document.getElementById('root').innerHTML = `
+                <div style="text-align: center; padding: 20px; color: red;">
+                    <h3>Error loading application!</h3>
+                    <p>Firebase initialization failed. Please check your console for details.</p>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        }
     </script>
 
     <script type="text/babel">
@@ -129,16 +132,16 @@
             constructor(props) {
                 super(props);
                 this.state = { hasError: false, error: null, errorInfo: null };
+                console.log("ErrorBoundary: Initialized");
             }
 
             static getDerivedStateFromError(error) {
-                // Update state so the next render shows the fallback UI.
+                console.error("ErrorBoundary: getDerivedStateFromError called with error:", error);
                 return { hasError: true };
             }
 
             componentDidCatch(error, errorInfo) {
-                // You can also log the error to an error reporting service
-                console.error("ErrorBoundary caught an error:", error, errorInfo);
+                console.error("ErrorBoundary: componentDidCatch caught an error:", error, errorInfo);
                 this.setState({
                     error: error,
                     errorInfo: errorInfo
@@ -147,7 +150,7 @@
 
             render() {
                 if (this.state.hasError) {
-                    // You can render any custom fallback UI
+                    console.log("ErrorBoundary: Rendering fallback UI.");
                     return (
                         <div className="flex flex-col items-center justify-center h-screen bg-red-100 text-red-800 p-4 rounded-lg shadow-md">
                             <h1 className="text-xl font-bold mb-2">Oops! Something went wrong.</h1>
@@ -165,7 +168,7 @@
                         </div>
                     );
                 }
-
+                console.log("ErrorBoundary: Rendering children.");
                 return this.props.children;
             }
         }
@@ -214,26 +217,57 @@
             const [notificationPermission, setNotificationPermission] = useState('default'); // 'granted', 'denied', 'default'
             const [userId, setUserId] = useState(null); // State to store the authenticated user ID
             const [isAuthReady, setIsAuthReady] = useState(false); // To track if auth state is determined
+            const [testData, setTestData] = useState({}); // Start empty, let Firestore populate
+            const [todayFocusItems, setTodayFocusItems] = useState([]); // Start empty, let Firestore populate
+            const [timetableEntries, setTimetableEntries] = useState([]); // Start empty, let Firestore populate
+            const [currentSelectedSubject, setCurrentSelectedSubject] = useState(''); // For TestsCompletedPage
+            const [currentTimetableSubject, setCurrentTimetableSubject] = useState(''); // For TimetablePage progress
+
+            console.log("App Component: Rendered. CurrentPage:", currentPage, "isLoggedIn:", isLoggedIn, "isAuthReady:", isAuthReady, "userId:", userId);
 
             // --- Firebase Auth & Data Loading ---
             useEffect(() => {
-                // Listen for auth state changes
+                console.log("App Component useEffect [auth]: Running Firebase auth listener setup.");
+                // Ensure Firebase auth object is available
+                if (!window.auth) {
+                    console.error("App Component useEffect [auth]: window.auth is not defined. Firebase may not have initialized.");
+                    setIsAuthReady(true); // Prevent infinite loading, but mark as failed init
+                    return;
+                }
+
                 const unsubscribeAuth = window.onAuthStateChanged(window.auth, (user) => {
+                    console.log("App Component useEffect [auth]: onAuthStateChanged callback fired. User:", user ? user.uid : "null");
                     if (user) {
                         setUserId(user.uid);
+                        setIsLoggedIn(true);
+                        setCurrentPage('dashboard');
                     } else {
-                        // Attempt anonymous sign-in if no user is found
+                        console.log("App Component useEffect [auth]: No user found, attempting anonymous sign-in.");
                         window.signInAnonymously(window.auth)
                             .then(credential => {
                                 setUserId(credential.user.uid);
-                                console.log("Signed in anonymously:", credential.user.uid);
+                                setIsLoggedIn(true);
+                                setCurrentPage('dashboard');
+                                console.log("App Component useEffect [auth]: Signed in anonymously:", credential.user.uid);
                             })
                             .catch(error => {
-                                console.error("Error signing in anonymously:", error);
+                                console.error("App Component useEffect [auth]: Error signing in anonymously:", error);
                                 showNotification("Authentication failed. Data persistence may not work.", 'error');
+                                setCurrentPage('login');
+                            })
+                            .finally(() => {
+                                setIsAuthReady(true);
+                                console.log("App Component useEffect [auth]: Auth process finalized. isAuthReady set to true.");
                             });
                     }
-                    setIsAuthReady(true); // Auth state has been determined
+                    if (user) {
+                        setIsAuthReady(true);
+                        console.log("App Component useEffect [auth]: User found. isAuthReady set to true.");
+                    }
+                }, (error) => {
+                    console.error("App Component useEffect [auth]: onAuthStateChanged error:", error);
+                    setIsAuthReady(true);
+                    showNotification("Error during authentication state change.", 'error');
                 });
 
                 // Request notification permission on app load
@@ -246,76 +280,74 @@
                     }
                 }
 
-                return () => unsubscribeAuth(); // Cleanup auth listener on component unmount
-            }, []); // Empty dependency array means this runs once on mount
+                return () => {
+                    console.log("App Component useEffect [auth]: Cleaning up auth listener.");
+                    unsubscribeAuth();
+                }
+            }, []);
+
 
             // Effect for loading data from Firestore and setting up real-time listeners
             useEffect(() => {
-                if (isAuthReady && userId) {
+                console.log("App Component useEffect [data]: Running data loading effect. isAuthReady:", isAuthReady, "userId:", userId);
+                if (isAuthReady && userId && window.db) {
+                    console.log("App Component useEffect [data]: Attempting to set up Firestore listeners for userId:", userId);
                     const userSubjectsCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "subjects");
                     const userTimetableCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "timetable");
 
                     // Listen for real-time updates to subjects (testData)
                     const unsubscribeSubjects = window.onSnapshot(userSubjectsCollectionRef, (snapshot) => {
+                        console.log("App Component useEffect [data]: Subjects snapshot received.");
                         const loadedTestData = {};
                         snapshot.forEach((doc) => {
-                            loadedTestData[doc.id] = doc.data().tests || []; // Assuming tests array is stored under 'tests' field
+                            loadedTestData[doc.id] = doc.data().tests || [];
                         });
                         setTestData(loadedTestData);
-                        console.log("Test data loaded/updated from Firestore.");
-                        if (Object.keys(loadedTestData).length === 0) {
+                        console.log("Test data loaded/updated from Firestore:", loadedTestData);
+
+                        if (Object.keys(loadedTestData).length > 0) {
+                            if (!currentSelectedSubject || !loadedTestData.hasOwnProperty(currentSelectedSubject)) {
+                                setCurrentSelectedSubject(Object.keys(loadedTestData)[0]); // Set default if none or invalid
+                            }
+                            if (!currentTimetableSubject || !loadedTestData.hasOwnProperty(currentTimetableSubject)) {
+                                setCurrentTimetableSubject(Object.keys(loadedTestData)[0]); // Set default if none or invalid
+                            }
+                        } else {
+                            setCurrentSelectedSubject(''); // No subjects, clear selection
+                            setCurrentTimetableSubject(''); // No subjects, clear selection
                             showNotification("No subjects found. Add new subjects to get started!", 'info');
                         }
-                        // Adjust current selected subjects if the loaded data doesn't contain it
-                        if (currentSelectedSubject && !loadedTestData.hasOwnProperty(currentSelectedSubject)) {
-                             setCurrentSelectedSubject(Object.keys(loadedTestData).length > 0 ? Object.keys(loadedTestData)[0] : '');
-                        }
-                         if (currentTimetableSubject && !loadedTestData.hasOwnProperty(currentTimetableSubject)) {
-                             setCurrentTimetableSubject(Object.keys(loadedTestData).length > 0 ? Object.keys(loadedTestData)[0] : '');
-                        }
-
                     }, (error) => {
-                        console.error("Error listening to subjects data:", error);
+                        console.error("App Component useEffect [data]: Error listening to subjects data:", error);
                         showNotification("Failed to load subjects data.", 'error');
                     });
 
                     // Listen for real-time updates to timetable entries
                     const unsubscribeTimetable = window.onSnapshot(userTimetableCollectionRef, (snapshot) => {
+                        console.log("App Component useEffect [data]: Timetable snapshot received.");
                         const loadedTimetableEntries = snapshot.docs.map(doc => ({
                             id: doc.id,
                             ...doc.data()
                         }));
                         setTimetableEntries(loadedTimetableEntries);
-                        console.log("Timetable data loaded/updated from Firestore.");
+                        console.log("Timetable data loaded/updated from Firestore:", loadedTimetableEntries);
                     }, (error) => {
-                        console.error("Error listening to timetable data:", error);
+                        console.error("App Component useEffect [data]: Error listening to timetable data:", error);
                         showNotification("Failed to load timetable data.", 'error');
                     });
 
-                    // Set initial focus items from loaded test data (first subject's tests)
-                    // This logic might need refinement based on how you want "Today's Focus" to persist.
-                    // For now, it will load the sample data, then update if Firestore has data.
-                     const initialSubjectKey = Object.keys(testData)[0];
-                     if (initialSubjectKey && testData[initialSubjectKey]?.length > 0) {
-                        const initialFocus = testData[initialSubjectKey].slice(0, 2).map(test => ({
-                            id: `${initialSubjectKey}-${test.title}`,
-                            subject: initialSubjectKey,
-                            title: test.title,
-                            mcqs: test.mcqs,
-                            type: "Custom", // Can be dynamic if you add a type to your test data
-                            iconPath: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
-                        }));
-                        setTodayFocusItems(initialFocus);
-                    }
-
-
                     // Cleanup listeners on unmount or userId change
                     return () => {
+                        console.log("App Component useEffect [data]: Cleaning up Firestore listeners.");
                         unsubscribeSubjects();
                         unsubscribeTimetable();
                     };
+                } else if (isAuthReady && !userId) {
+                    console.log("App Component useEffect [data]: Auth ready, but no user ID. Not setting up Firestore listeners.");
+                } else if (!isAuthReady) {
+                    console.log("App Component useEffect [data]: Auth not yet ready. Deferring Firestore listener setup.");
                 }
-            }, [isAuthReady, userId]); // Re-run when auth state is ready or user changes
+            }, [isAuthReady, userId, currentSelectedSubject, currentTimetableSubject]); // Added subject states to dependencies
 
             // Effect to hide notification automatically
             useEffect(() => {
@@ -330,15 +362,6 @@
             const showNotification = useCallback((message, type = 'info') => {
                 setNotification({ message, type, visible: true });
             }, []);
-
-            // Initial Sample Data (will be overwritten by Firestore if data exists)
-            const [testData, setTestData] = useState({}); // Start empty, let Firestore populate
-            const [todayFocusItems, setTodayFocusItems] = useState([]); // Start empty, let Firestore populate
-            const [timetableEntries, setTimetableEntries] = useState([]); // Start empty, let Firestore populate
-
-
-            const [currentSelectedSubject, setCurrentSelectedSubject] = useState(''); // For TestsCompletedPage
-            const [currentTimetableSubject, setCurrentTimetableSubject] = useState(''); // For TimetablePage progress
 
             // --- Utility Functions ---
             const getRandomChange = () => {
@@ -356,7 +379,6 @@
                     showNotification('Subject name is required.', 'error');
                     return;
                 }
-                // Check locally first for quicker feedback, then verify with Firestore if necessary
                 if (testData.hasOwnProperty(subjectName)) {
                     showNotification(`Subject "${subjectName}" already exists.`, 'error');
                     return;
@@ -365,7 +387,6 @@
                 try {
                     const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
                     await window.setDoc(subjectDocRef, { tests: [] }); // Initialize with empty tests array
-                    setTestData(prevData => ({ ...prevData, [subjectName]: [] }));
                     showNotification(`Subject "${subjectName}" added successfully.`, 'success');
                 } catch (error) {
                     console.error("Error adding subject:", error);
@@ -392,19 +413,14 @@
                     const newTest = { title, mcqs: parseInt(mcqs), date };
                     const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
                     
-                    // Update the array using a transaction or get-update-set pattern
                     const subjectDoc = await window.getDoc(subjectDocRef);
                     if (subjectDoc.exists()) {
                         const currentTests = subjectDoc.data().tests || [];
                         const updatedTests = [...currentTests, newTest];
                         await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
-                        setTestData(prevData => ({
-                            ...prevData,
-                            [subjectName]: updatedTests
-                        }));
                         showNotification(`Test "${title}" added to "${subjectName}".`, 'success');
                     } else {
-                        showNotification('Subject document not found.', 'error');
+                        showNotification('Subject document not found. This might be a sync issue. Please try refreshing.', 'error');
                     }
                 } catch (error) {
                     console.error("Error adding test:", error);
@@ -423,23 +439,19 @@
                     const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
                     await window.deleteDoc(subjectDocRef);
                     
-                    setTestData(prevData => {
-                        const updatedTestData = { ...prevData };
-                        delete updatedTestData[subjectName];
-                        return updatedTestData;
-                    });
                     setTodayFocusItems(prevItems => prevItems.filter(item => item.subject !== subjectName));
 
-                    if (Object.keys(testData).length > 1 && currentSelectedSubject === subjectName) {
-                        setCurrentSelectedSubject(Object.keys(testData)[0]);
-                    } else if (Object.keys(testData).length === 1 && currentSelectedSubject === subjectName) {
-                        setCurrentSelectedSubject(''); // No subjects left
+                    const remainingSubjects = Object.keys(testData).filter(sub => sub !== subjectName);
+                    if (currentSelectedSubject === subjectName && remainingSubjects.length > 0) {
+                        setCurrentSelectedSubject(remainingSubjects[0]);
+                    } else if (currentSelectedSubject === subjectName && remainingSubjects.length === 0) {
+                        setCurrentSelectedSubject('');
                     }
                     
-                    if (Object.keys(testData).length > 1 && currentTimetableSubject === subjectName) {
-                        setCurrentTimetableSubject(Object.keys(testData)[0]);
-                    } else if (Object.keys(testData).length === 1 && currentTimetableSubject === subjectName) {
-                        setCurrentTimetableSubject(''); // No subjects left
+                    if (currentTimetableSubject === subjectName && remainingSubjects.length > 0) {
+                        setCurrentTimetableSubject(remainingSubjects[0]);
+                    } else if (currentTimetableSubject === subjectName && remainingSubjects.length === 0) {
+                        setCurrentTimetableSubject('');
                     }
                     showNotification(`Subject "${subjectName}" deleted.`, 'success');
                 } catch (error) {
@@ -463,13 +475,10 @@
                         const currentTests = subjectDoc.data().tests || [];
                         const updatedTests = currentTests.filter(test => test.title !== testTitle);
                         await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
-
-                        setTestData(prevData => ({
-                            ...prevData,
-                            [subjectName]: updatedTests
-                        }));
                         setTodayFocusItems(prevItems => prevItems.filter(item => !(item.subject === subjectName && item.title === testTitle)));
                         showNotification(`Test "${testTitle}" deleted from "${subjectName}".`, 'success');
+                    } else {
+                        showNotification('Subject document not found. This might be a sync issue. Please try refreshing.', 'error');
                     }
                 } catch (error) {
                     console.error("Error deleting test:", error);
@@ -485,7 +494,7 @@
                     const iconPath = "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"; // Default icon path
                     setTodayFocusItems(prevItems => [
                         ...prevItems,
-                        { ...testToAdd, id: newItemId, subject: subjectName, iconPath: testToAdd.iconPath || iconPath }
+                        { ...testToAdd, id: newItemId, subject: subjectName, type: "Custom", iconPath: testToAdd.iconPath || iconPath }
                     ]);
                     showNotification(`Added "${testToAdd.title}" to Today's Focus.`, 'success');
                 } else {
@@ -526,10 +535,10 @@
                                 });
                             }, reminderTime);
                         } else {
-                            console.warn('Event is in the past or too soon for a reminder.');
+                            console.warn('Event is in the past or too soon for a reminder. No notification scheduled.');
                         }
                     } else {
-                        console.warn('Notification permission not granted.');
+                        console.warn('Notification permission not granted. Cannot schedule local notification.');
                     }
                 } catch (error) {
                     console.error("Error adding timetable entry:", error);
@@ -551,6 +560,7 @@
 
             // --- Page Navigation ---
             const navigateTo = useCallback((pageName, options = {}) => {
+                console.log("Navigating to:", pageName, "with options:", options);
                 setCurrentPage(pageName);
                 if (pageName === 'trophy' && options.fromTimetable && options.subject) {
                     setCurrentSelectedSubject(options.subject);
@@ -559,19 +569,36 @@
             }, []);
 
             // --- Auth Logic ---
-            const handleLogin = () => {
+            const handleLogin = async () => {
+                console.log("handleLogin: Called.");
+                if (!userId) {
+                    console.log("handleLogin: userId is null, attempting anonymous sign-in.");
+                    try {
+                        const credential = await window.signInAnonymously(window.auth);
+                        setUserId(credential.user.uid);
+                        console.log("handleLogin: Signed in anonymously and set new userId:", credential.user.uid);
+                    } catch (error) {
+                        console.error("handleLogin: Error during anonymous sign-in after manual login attempt:", error);
+                        showNotification("Failed to re-authenticate. Please try refreshing.", 'error');
+                        // Do not proceed with login if auth fails
+                        return;
+                    }
+                }
                 setIsLoggedIn(true);
                 navigateTo('dashboard');
+                console.log("handleLogin: Setting isLoggedIn to true and navigating to dashboard.");
             };
 
             const handleLogout = () => {
+                console.log("handleLogout: Setting isLoggedIn to false and navigating to login, clearing userId.");
                 setIsLoggedIn(false);
+                setUserId(null); // Explicitly clear userId on logout
                 navigateTo('login');
-                setUserId(null); // Clear user ID on logout
             };
 
-            // Render Logic based on currentPage
+            // Render Logic based on currentPage and auth readiness
             const renderPage = () => {
+                console.log("renderPage: isAuthReady:", isAuthReady, "currentPage:", currentPage, "isLoggedIn:", isLoggedIn);
                 if (!isAuthReady) {
                     return (
                         <div className="flex flex-col items-center justify-center min-h-screen">
@@ -581,8 +608,14 @@
                     );
                 }
 
+                if (!isLoggedIn) {
+                    console.log("renderPage: Not logged in, showing LoginPage.");
+                    return <LoginPage onLogin={handleLogin} />;
+                }
+
                 switch (currentPage) {
-                    case 'login':
+                    case 'login': // Should not be reached if isLoggedIn is true
+                        console.log("renderPage: Unexpectedly rendering LoginPage while isLoggedIn is true.");
                         return <LoginPage onLogin={handleLogin} />;
                     case 'dashboard':
                         return <DashboardPage
@@ -629,7 +662,13 @@
                     case 'profile':
                         return <ProfilePage onManageContent={() => navigateTo('manage-tests')} onLogout={handleLogout} currentUserId={userId} />;
                     default:
-                        return <LoginPage onLogin={handleLogin} />;
+                        console.warn("renderPage: Unknown currentPage. Defaulting to Dashboard.");
+                        return <DashboardPage
+                                    testData={testData}
+                                    todayFocusItems={todayFocusItems}
+                                    onEditFocus={() => navigateTo('edit-focus')}
+                                    removeFocusItem={removeFocusItem}
+                                />;
                 }
             };
 
@@ -657,10 +696,11 @@
             const { useState } = React;
             const [email, setEmail] = useState('student@test.com');
             const [password, setPassword] = useState('password');
+            console.log("LoginPage: Rendered.");
 
             const handleSubmit = (e) => {
                 e.preventDefault(); // This correctly prevents default form submission
-                // In a real app, you'd validate credentials here
+                console.log("LoginPage: Login button clicked.");
                 onLogin();
             };
 
@@ -948,7 +988,7 @@
                             <p className="text-sm text-gray-500">Subject</p>
                             <p id="timetable-progress-subject" className="text-xl font-bold text-gray-800">{currentTimetableSubject || 'Select Subject'}</p>
                             <p className="text-sm text-gray-500 mt-1">Tests Completed</p>
-                            <p id="timetable-progress-count" className="text-lg font-bold text-gray-800">{completedCount}/{totalCount}</p>
+                            <p className="text-lg font-bold text-gray-800">{completedCount}/{totalCount}</p>
                         </div>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </div>
@@ -1353,6 +1393,7 @@
         };
 
         // Render the App component into the 'root' div, wrapped in ErrorBoundary
+        console.log("Attempting to render React App into #root.");
         ReactDOM.createRoot(document.getElementById('root')).render(
             <ErrorBoundary>
                 <App />
