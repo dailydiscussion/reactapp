@@ -985,7 +985,7 @@ onClick={() => onNavigate('profile')} // Navigate to profile on click
 <hr className="my-6 border-t border-gray-200" />
 
 <header className="flex items-center justify-between mb-2">
-<h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+<h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
 </header>
 <p className="text-gray-500 mb-8">Your progress at a glance...</p>
 <div className="grid grid-cols-2 gap-4 mb-10">
@@ -1016,11 +1016,11 @@ icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 
 {/* Horizontal line for separation */}
 <hr className="my-6 border-t border-gray-200" />
 
-<header className="flex items-center justify-between mb-2 py-3">
+<header className="flex items-center justify-between py-2">
 <h2 className="text-xl font-bold text-gray-900">Today's Focus</h2>
 <button onClick={onEditFocus} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit Focus</button>
 </header>
-<p className="text-gray-500 mb-4">Your tests today...</p>
+<p className="text-gray-500 mb-6">Your tests today...</p>
 {/* Removed overflow-x-auto and space-x-4 to hide slider and make items stack */}
 <div id="today-focus-container" className="flex flex-col space-y-4 pb-4">
 {todayFocusItems.length === 0 ? (
@@ -1639,4 +1639,3 @@ document.getElementById('root')
 </script>
 </body>
 </html>
-�
