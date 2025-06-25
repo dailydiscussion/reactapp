@@ -2,86 +2,86 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Education Dashboard Self-Contained HTML Application" />
-    <title>Education Dashboard</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#000000" />
+<meta name="description" content="Education Dashboard Self-Contained HTML Application" />
+<title>Education Dashboard</title>
 
-    <script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=Josefin+Sans&amp;family=Kalnia:wght@600&amp;family=Lemon&amp;family=Raleway:wght@700&amp;family=Tilt+Prism&amp;display=swap"
-        rel="stylesheet">
-    <style>
-        /* Base styles */
-        body {
-            font-family: 'Inter', Josefin Sans;
-            -webkit-tap-highlight-color: transparent;
-            /* Disable tap highlight on mobile */
-            background-color: #f9fafb;
-            /* Light gray background */
-            color: #1f2937;
-            /* Darker text for readability */
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+<link
+href="https://fonts.googleapis.com/css2?family=Josefin+Sans&amp;family=Kalnia:wght@600&amp;family=Lemon&amp;family=Raleway:wght@700&amp;family=Tilt+Prism&amp;display=swap"
+rel="stylesheet">
+<style>
+/* Base styles */
+body {
+font-family: 'Inter', Josefin Sans;
+-webkit-tap-highlight-color: transparent;
+/* Disable tap highlight on mobile */
+background-color: #f9fafb;
+/* Light gray background */
+color: #1f2937;
+/* Darker text for readability */
+margin: 0;
+padding: 0;
+display: flex;
+justify-content: center;
+align-items: center;
+min-height: 100vh;
+}
 
-        /* Hide scrollbar for webkit browsers */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
+/* Hide scrollbar for webkit browsers */
+.no-scrollbar::-webkit-scrollbar {
+display: none;
+}
 
-        /* Hide scrollbar for IE, Edge and Firefox */
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            /* IE and Edge */
-            scrollbar-width: none;
-            /* Firefox */
-        }
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+-ms-overflow-style: none;
+/* IE and Edge */
+scrollbar-width: none;
+/* Firefox */
+}
 
-        /* General page styling - ensures pages fill content area */
-        .page {
-            min-height: calc(100vh - 80px);
-            /* Adjust based on your header/footer height */
-            padding-bottom: 5rem;
-            /* Space for bottom navigation */
-        }
+/* General page styling - ensures pages fill content area */
+.page {
+min-height: calc(100vh - 80px);
+/* Adjust based on your header/footer height */
+padding-bottom: 5rem;
+/* Space for bottom navigation */
+}
 
-        /* Ensure the main container accounts for fixed bottom nav */
-        #main-content {
-            padding-bottom: 5rem;
-            /* Adjust if bottom nav height changes */
-        }
+/* Ensure the main container accounts for fixed bottom nav */
+#main-content {
+padding-bottom: 5rem;
+/* Adjust if bottom nav height changes */
+}
 
-        /* For the fixed notification message to be visible */
-        .z-50 {
-            z-index: 9999;
-        }
+/* For the fixed notification message to be visible */
+.z-50 {
+z-index: 9999;
+}
 
-        /* Ensure smooth transitions for page content changes */
-        .page-transition {
-            transition: opacity 0.3s ease-in-out;
-        }
-    </style>
+/* Ensure smooth transitions for page content changes */
+.page-transition {
+transition: opacity 0.3s ease-in-out;
+}
+</style>
 </head>
 
 <body class="bg-gray-50 text-gray-800 transition-colors duration-300">
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"
-        class="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative overflow-hidden transition-colors duration-300">
-    </div>
+<noscript>You need to enable JavaScript to run this app.</noscript>
+<div id="root"
+class="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative overflow-hidden transition-colors duration-300">
+</div>
 
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 // Only import what's needed for this setup (signOut for logout simulation)
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 // Import all necessary Firestore functions, including addDoc for focus items
@@ -142,8 +142,8 @@ document.getElementById('root').innerHTML = `
 }
 </script>
 
-    <script type="text/babel">
-        // ErrorBoundary component to catch rendering errors
+<script type="text/babel">
+// ErrorBoundary component to catch rendering errors
 class ErrorBoundary extends React.Component {
 constructor(props) {
 super(props);
@@ -539,7 +539,7 @@ await window.deleteDoc(window.doc(todayFocusCollectionRef, doc.id));
 setTodayFocusItems(prevItems => prevItems.filter(item => !(item.subject === subjectName && item.title === testTitle)));
 showNotification(`Test "${testTitle}" deleted from "${subjectName}".`, 'success');
 } else {
-    showNotification('Subject document not found. This might be a sync issue. Please try refreshing.', 'error');
+showNotification('Subject document not found. This might be a sync issue. Please try refreshing.', 'error');
 }
 } catch (error) {
 console.error("Error deleting test:", error);
@@ -1064,29 +1064,29 @@ onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with
 
 {/* Right section: Reorder and Remove Buttons */}
 {allowReorder && (
-    <div className="absolute top-2 right-2 flex flex-col items-center space-y-1">
-        <button
-            onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
-            disabled={isFirst}
-            className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
-            aria-label="Move up"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-        </button>
-        <button
-            onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
-            disabled={isLast}
-            className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
-            aria-label="Move down"
-        >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </button>
-    </div>
+<div className="absolute top-2 right-2 flex flex-col items-center space-y-1">
+<button
+onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+disabled={isFirst}
+className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+aria-label="Move up"
+>
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+</button>
+<button
+onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+disabled={isLast}
+className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+aria-label="Move down"
+>
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+</button>
+</div>
 )}
 {!allowReorder && ( // Only show this button if reordering is NOT allowed (i.e., on Dashboard)
-    <button className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-    </button>
+<button className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+</button>
 )}
 </div>
 );
@@ -1312,8 +1312,8 @@ id="select-timetable-subject"
 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 value={currentTimetableSubject}
 onChange={(e) => {
-    setCurrentTimetableSubject(e.target.value);
-    setCurrentSelectedSubject(e.target.value); // Sync with currentSelectedSubject
+setCurrentTimetableSubject(e.target.value);
+setCurrentSelectedSubject(e.target.value); // Sync with currentSelectedSubject
 }}
 disabled={subjects.length === 0}
 >
@@ -1612,15 +1612,15 @@ setLocalFocusItems(todayFocusItems.map((item, index) => ({ ...item, order: item.
 
 // Generate a temporary 'id' for items from testData that don't have a Firestore ID yet
 const allTests = Object.keys(testData).flatMap(subject =>
-    testData[subject].map(test => ({ ...test, subject, id: `${subject}-${test.title}` })) // Temporary ID for non-Firestore items
+testData[subject].map(test => ({ ...test, subject, id: `${subject}-${test.title}` })) // Temporary ID for non-Firestore items
 );
 
 // Filter all available tests based on selected subject and then search query
 const filteredAllTests = allTests.filter(test => {
-    const matchesSubject = selectedAvailableSubject === '' || test.subject === selectedAvailableSubject;
-    const matchesSearch = test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          test.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSubject && matchesSearch;
+const matchesSubject = selectedAvailableSubject === '' || test.subject === selectedAvailableSubject;
+const matchesSearch = test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+test.subject.toLowerCase().includes(searchQuery.toLowerCase());
+return matchesSubject && matchesSearch;
 });
 
 const subjects = Object.keys(testData); // Get subjects for the dropdown
@@ -1676,21 +1676,24 @@ isLast={index === localFocusItems.length - 1}
 </div>
 </div>
 
-<h3 className="font-bold text-gray-900 mb-4">Available Tests to Add</h3>
+{/* Horizontal line for separation */}
+<hr className="my-6 border-t border-gray-200" />
+
+<h3 className="font-bold text-gray-900 mb-4 my-6">Available Tests to Add</h3>
 {/* New: Subject Filter Dropdown */}
 <div className="mb-4">
-    <label htmlFor="select-available-subject" className="block text-sm font-medium text-gray-700 mb-1">Filter by Subject:</label>
-    <select
-        id="select-available-subject"
-        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        value={selectedAvailableSubject}
-        onChange={(e) => setSelectedAvailableSubject(e.target.value)}
-    >
-        <option value="">All Subjects</option>
-        {subjects.map(subject => (
-            <option key={subject} value={subject}>{subject}</option>
-        ))}
-    </select>
+<label htmlFor="select-available-subject" className="block text-sm font-medium text-gray-700 mb-1">Filter by Subject:</label>
+<select
+id="select-available-subject"
+className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+value={selectedAvailableSubject}
+onChange={(e) => setSelectedAvailableSubject(e.target.value)}
+>
+<option value="">All Subjects</option>
+{subjects.map(subject => (
+<option key={subject} value={subject}>{subject}</option>
+))}
+</select>
 </div>
 
 {/* Search Input for Available Tests */}
@@ -1853,15 +1856,15 @@ onDeleteTest={deleteTest}
 
 // ProfilePage Component
 const ProfilePage = ({ onManageContent, onLogout, currentUserId, userName, userEmail, onResetLocalData }) => {
-    // Function to show a notification for unimplemented features
-    const showUnimplementedFeatureNotification = () => {
-        // Assuming there's a global showNotification function available from App component
-        if (typeof window.showNotification === 'function') {
-            window.showNotification('This feature is not yet implemented.', 'info');
-        } else {
-            console.warn('showNotification function is not available.');
-        }
-    };
+// Function to show a notification for unimplemented features
+const showUnimplementedFeatureNotification = () => {
+// Assuming there's a global showNotification function available from App component
+if (typeof window.showNotification === 'function') {
+window.showNotification('This feature is not yet implemented.', 'info');
+} else {
+console.warn('showNotification function is not available.');
+}
+};
 
 return (
 <div id="page-profile" className="page px-6 py-8">
@@ -1882,32 +1885,32 @@ return (
 </div>
 
 <div className="space-y-4 mb-8">
-    {/* Converted to div and added onClick for unimplemented feature */}
-    <div
-        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
-        onClick={showUnimplementedFeatureNotification}
-    >
-        Edit Profile
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </div>
-    {/* Corrected typo items-around to items-center and converted to div */}
-    <div
-        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
-        onClick={showUnimplementedFeatureNotification}
-    >
-        Subscription
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </div>
-    <button onClick={onManageContent} className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200">
-        Manage Subjects & Tests
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </button>
+{/* Converted to div and added onClick for unimplemented feature */}
+<div
+className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
+onClick={showUnimplementedFeatureNotification}
+>
+Edit Profile
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</div>
+{/* Corrected typo items-around to items-center and converted to div */}
+<div
+className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
+onClick={showUnimplementedFeatureNotification}
+>
+Subscription
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</div>
+<button onClick={onManageContent} className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200">
+Manage Subjects & Tests
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</button>
 </div>
 
 <div className="mt-auto pt-6 border-t border-gray-200">
 <button onClick={onResetLocalData} className="w-full bg-yellow-100 text-yellow-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:bg-yellow-200 transition duration-200 mb-4">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9 0 0 0 6.74-2.74L21 16"></path><path d="M16 21v-5h5"></path></svg>
-    Reset Local App Data
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9 0 0 0 6.74-2.74L21 16"></path><path d="M16 21v-5h5"></path></svg>
+Reset Local App Data
 </button>
 <button onClick={onLogout} className="w-full bg-red-100 text-red-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:bg-red-200 transition duration-200">
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="17 16 22 12 17 8"></polyline><line x1="22" y1="12" x2="10" y2="12"></line></svg>
