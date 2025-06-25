@@ -220,6 +220,8 @@ const [isLoggedIn, setIsLoggedIn] = useState(false);
 const [notification, setNotification] = useState({ message: '', type: '', visible: false });
 const [notificationPermission, setNotificationPermission] = useState('default'); // 'granted', 'denied', 'default'
 const [userId, setUserId] = useState(null); // State to store the authenticated user ID
+const [userName, setUserName] = useState(null); // New state for user name
+const [userEmail, setUserEmail] = useState(null); // New state for user email
 const [isAuthReady, setIsAuthReady] = useState(false); // To track if auth state is determined
 const [isLoading, setIsLoading] = useState(true); // New: Loading state for data
 const [testData, setTestData] = useState({}); // Start empty, let Firestore populate
@@ -235,18 +237,24 @@ useEffect(() => {
 console.log("App Component useEffect [init]: Checking for persistent login.");
 const storedLoggedIn = localStorage.getItem('isLoggedIn');
 const storedUserId = localStorage.getItem('userId');
+const storedUserName = localStorage.getItem('userName'); // Retrieve userName
+const storedUserEmail = localStorage.getItem('userEmail'); // Retrieve userEmail
 
 if (storedLoggedIn === 'true' && storedUserId) {
 setUserId(storedUserId);
+setUserName(storedUserName || 'Guest'); // Set userName, default to 'Guest'
+setUserEmail(storedUserEmail || ''); // Set userEmail, default to empty string
 setIsLoggedIn(true);
 setCurrentPage('dashboard');
 console.log("App Component useEffect [init]: Found persistent login for userId:", storedUserId);
 } else {
 setIsLoggedIn(false);
 setUserId(null);
+setUserName(null);
+setUserEmail(null);
 setCurrentPage('login');
 // If not logged in, no data to load, so stop loading
-setIsLoading(false); 
+setIsLoading(false);
 console.log("App Component useEffect [init]: No persistent login found, starting at login page. Set isLoading to false.");
 }
 setIsAuthReady(true); // Authentication state (simulated) is now determined
@@ -499,7 +507,7 @@ await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
 
 // Also delete this specific test from Today's Focus in Firestore
 const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
-const q = window.query(todayFocusCollectionRef, 
+const q = window.query(todayFocusCollectionRef,
 window.where("subject", "==", subjectName),
 window.where("title", "==", testTitle)
 );
@@ -524,7 +532,7 @@ const addFocusItem = useCallback(async (testToAdd, subjectName) => {
 if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
 // Check if the item is already present in the local state, considering both ID (if from Firestore)
 // and the subject/title combination (if not yet in Firestore or when matching new items)
-const existingItem = todayFocusItems.find(item => 
+const existingItem = todayFocusItems.find(item =>
 (item.id === testToAdd.id && testToAdd.id !== `${subjectName}-${testToAdd.title}`) || // If testToAdd already has a Firestore ID
 (item.subject === subjectName && item.title === testToAdd.title) // Fallback for new items
 );
@@ -537,14 +545,14 @@ return;
 
 try {
 const iconPath = "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"; // Default icon path
-const focusItemData = { 
-title: testToAdd.title, 
-mcqs: testToAdd.mcqs, 
-date: testToAdd.date, 
+const focusItemData = {
+title: testToAdd.title,
+mcqs: testToAdd.mcqs,
+date: testToAdd.date,
 link: testToAdd.link || '', // Ensure link is saved
-subject: subjectName, 
-type: "Custom", 
-iconPath: testToAdd.iconPath || iconPath 
+subject: subjectName,
+type: "Custom",
+iconPath: testToAdd.iconPath || iconPath
 };
 
 const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
@@ -641,7 +649,11 @@ console.log("handleLogin: Attempting login for username:", enteredUsername);
 if (enteredUsername === correctUsername && enteredPassword === correctPassword) {
 localStorage.setItem('isLoggedIn', 'true');
 localStorage.setItem('userId', fixedUserId);
+localStorage.setItem('userName', enteredUsername); // Store userName
+localStorage.setItem('userEmail', 'nikhil@example.com'); // Store a placeholder email
 setUserId(fixedUserId);
+setUserName(enteredUsername); // Set userName in state
+setUserEmail('nikhil@example.com'); // Set userEmail in state
 setIsLoggedIn(true);
 setCurrentPage('dashboard');
 showNotification("Logged in successfully!", "success");
@@ -658,6 +670,8 @@ try {
 // Clear local storage for simulated persistent login
 localStorage.removeItem('isLoggedIn');
 localStorage.removeItem('userId');
+localStorage.removeItem('userName'); // Clear userName
+localStorage.removeItem('userEmail'); // Clear userEmail
 
 // If a Firebase auth instance exists, sign it out to clear any active anonymous sessions
 // This is good practice even with simulated auth, to clean up any Firebase sessions
@@ -668,12 +682,14 @@ console.log("handleLogout: Firebase signOut successful.");
 }
 
 setUserId(null); // Clear userId in state
+setUserName(null); // Clear userName in state
+setUserEmail(null); // Clear userEmail in state
 setIsLoggedIn(false); // Update login status
 setCurrentPage('login'); // Redirect to login page
 showNotification("Logged out successfully.", "info");
 } catch (error) {
 console.error("handleLogout: Error during signOut or localStorage clear:", error);
-showNotification("Failed to log out.", "error");
+showNotification("Failed to log out.", 'error');
 }
 };
 
@@ -705,6 +721,9 @@ todayFocusItems={todayFocusItems}
 onEditFocus={() => navigateTo('edit-focus')}
 removeFocusItem={removeFocusItem}
 onNavigate={navigateTo} // Pass onNavigate prop
+userName={userName} // Pass userName
+userEmail={userEmail} // Pass userEmail
+currentUserId={userId} // Pass currentUserId
 />;
 case 'dashboard':
 return <DashboardPage
@@ -713,6 +732,9 @@ todayFocusItems={todayFocusItems}
 onEditFocus={() => navigateTo('edit-focus')}
 removeFocusItem={removeFocusItem}
 onNavigate={navigateTo} // Pass onNavigate prop
+userName={userName} // Pass userName
+userEmail={userEmail} // Pass userEmail
+currentUserId={userId} // Pass currentUserId
 />;
 case 'timetable':
 return <TimetablePage
@@ -750,7 +772,7 @@ deleteTest={deleteTest}
 onBackToProfile={() => navigateTo('profile')}
 />;
 case 'profile':
-return <ProfilePage onManageContent={() => navigateTo('manage-tests')} onLogout={handleLogout} currentUserId={userId} />;
+return <ProfilePage onManageContent={() => navigateTo('manage-tests')} onLogout={handleLogout} currentUserId={userId} userName={userName} userEmail={userEmail} />;
 default:
 console.warn("renderPage: Unknown currentPage. Defaulting to Dashboard.");
 return <DashboardPage
@@ -759,6 +781,9 @@ todayFocusItems={todayFocusItems}
 onEditFocus={() => navigateTo('edit-focus')}
 removeFocusItem={removeFocusItem}
 onNavigate={navigateTo} // Pass onNavigate prop
+userName={userName} // Pass userName
+userEmail={userEmail} // Pass userEmail
+currentUserId={userId} // Pass currentUserId
 />;
 }
 };
@@ -844,7 +869,7 @@ text = 'Good afternoon';
 emoji = '👋';
 } else if (hour >= 17 && hour < 22) {
 text = 'Good evening';
-emoji = '🌆';
+emoji = '�';
 } else {
 text = 'Time to sleep';
 emoji = '😴';
@@ -860,10 +885,9 @@ return () => clearInterval(intervalId); // Cleanup interval on unmount
 
 return (
 <div> {/* Removed mb-6 */}
-<p className="text-1xl font-light text-gray-500 flex items-center">
-{greetingText}<span className="ml-1 text-1xl">{greetingEmoji}</span>
+<p className="text-sm font-light text-gray-500 flex items-center">
+{greetingText}<span className="ml-1 text-base">{greetingEmoji}</span>
 </p>
-<p className="text-3xl font-bold text-gray-900">Dear {userName}</p>
 </div>
 );
 };
@@ -913,7 +937,7 @@ onClick={handleCardClick}
 };
 
 // DashboardPage Component - Stat calculations updated
-const DashboardPage = ({ testData, todayFocusItems, onEditFocus, removeFocusItem, onNavigate }) => {
+const DashboardPage = ({ testData, todayFocusItems, onEditFocus, removeFocusItem, onNavigate, userName, userEmail, currentUserId }) => {
 const { useState, useEffect } = React;
 const [stats, setStats] = useState({ days: 0, mcqs: 0, tests: 0, subjects: 0 });
 
@@ -945,18 +969,15 @@ subjects: uniqueSubjects.size
 
 return (
 <div id="page-dashboard" className="page px-6 py-8">
-<div className="flex justify-between items-center"> {/* Added py-4, kept items-center */}
-<div> {/* New div for Greeting */}
-<Greeting userName="Nikhil" />
-</div>
-<div> {/* New div for Avatar button */}
-<button 
-onClick={() => onNavigate('profile')} 
-className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-400 shadow-md flex items-center justify-center flex-shrink-0"
-aria-label="Go to Profile"
+<div
+className="flex items-center gap-4 bg-gray-100 p-4 rounded-xl mb-8 cursor-pointer"
+onClick={() => onNavigate('profile')} // Navigate to profile on click
 >
-<img src="https://placehold.co/48x48/E2E8F0/4A5568?text=NK" alt="User Avatar" className="w-full h-full object-cover" />
-</button>
+<img src="https://placehold.co/80x80/E2E8F0/4A5568?text=NK" alt="User Avatar" className="w-16 h-16 rounded-full" />
+<div>
+<h2 className="font-bold text-xl text-gray-800">Welcome {userName || 'User'}</h2> {/* Added "Welcome" */}
+<Greeting userName={userName || 'User'} /> {/* Replaced email with Greeting component */}
+<p className="text-sm text-gray-600 break-all">User ID: {currentUserId || 'Not authenticated'}</p> {/* Display User ID */}
 </div>
 </div>
 
@@ -995,7 +1016,7 @@ icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 
 {/* Horizontal line for separation */}
 <hr className="my-6 border-t border-gray-200" />
 
-<header className="flex items-center justify-between mb-2">
+<header className="flex items-center justify-between mb-2 py-3">
 <h2 className="text-xl font-bold text-gray-900">Today's Focus</h2>
 <button onClick={onEditFocus} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit Focus</button>
 </header>
@@ -1490,7 +1511,7 @@ Add Subject
 <label htmlFor="new-manage-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
 <input type="url" id="new-manage-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
 </div>
-<button onClick={handleAddTest} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300">
+<button onClick={handleAddTest} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
 Add Test
 </button>
 </div>
@@ -1516,44 +1537,61 @@ onDeleteTest={deleteTest}
 };
 
 // ProfilePage Component
-const ProfilePage = ({ onManageContent, onLogout, currentUserId }) => {
-// Hardcoded name and email as per user's request
-const userName = "Nikhil";
-const userEmail = "nikhil.student@example.com";
+const ProfilePage = ({ onManageContent, onLogout, currentUserId, userName, userEmail }) => {
+    // Function to show a notification for unimplemented features
+    const showUnimplementedFeatureNotification = () => {
+        // Assuming there's a global showNotification function available from App component
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('This feature is not yet implemented.', 'info');
+        } else {
+            console.warn('showNotification function is not available.');
+        }
+    };
 
 return (
 <div id="page-profile" className="page px-6 py-8">
-<header className="flex items-center justify-between mb-6">
-<h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+<header className="mb-6">
+<h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+<p className="text-gray-500 mt-2">Manage your account and app settings.</p>
 </header>
 
-<div className="flex items-center gap-4 bg-gray-100 p-4 rounded-xl mb-8">
-<img src="https://placehold.co/80x80/E2E8F0/4A5568?text=AV" alt="User Avatar" className="w-16 h-16 rounded-full" />
+<div className="bg-gray-100 p-6 rounded-lg shadow-md mb-6">
+<div className="flex items-center space-x-4">
+<img src="https://placehold.co/80x80/E2E8F0/4A5568?text=NK" alt="User Avatar" className="w-16 h-16 rounded-full" />
 <div>
-<h2 className="font-bold text-xl text-gray-800">{userName}</h2>
-<p className="text-gray-500">{userEmail}</p>
-<p className="text-sm text-gray-600 break-all">User ID: {currentUserId || 'Not authenticated'}</p> {/* Display User ID */}
+<h2 className="text-xl font-bold text-gray-800">{userName || 'User'}</h2>
+<p className="text-gray-600 text-sm">{userEmail || 'No Email'}</p>
+<p className="text-xs text-gray-500 break-all">User ID: {currentUserId || 'Not authenticated'}</p>
 </div>
 </div>
-
-<h3 className="font-bold text-lg text-gray-800 mb-4">Account</h3>
-<div className="space-y-2">
-<a href="#" className="flex justify-between items-center p-4 bg-gray-100 rounded-lg">
-<span className="font-medium">Edit Profile</span>
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</a>
-<a href="#" className="flex justify-between items-围绕 items-center p-4 bg-gray-100 rounded-lg">
-<span className="font-medium">Subscription</span>
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</a>
-<button onClick={onManageContent} className="flex justify-between items-center p-4 bg-gray-100 rounded-lg w-full text-left">
-<span className="font-medium">Manage Tests & Subjects</span>
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
-</button>
 </div>
 
-<div className="mt-8">
-<button onClick={onLogout} className="w-full bg-red-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300">
+<div className="space-y-4 mb-8">
+    {/* Converted to div and added onClick for unimplemented feature */}
+    <div
+        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
+        onClick={showUnimplementedFeatureNotification}
+    >
+        Edit Profile
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+    {/* Corrected typo items-around to items-center and converted to div */}
+    <div
+        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
+        onClick={showUnimplementedFeatureNotification}
+    >
+        Subscription
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+    <button onClick={onManageContent} className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200">
+        Manage Subjects & Tests
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+</div>
+
+<div className="mt-auto pt-6 border-t border-gray-200">
+<button onClick={onLogout} className="w-full bg-red-100 text-red-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:bg-red-200 transition duration-200">
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="17 16 22 12 17 8"></polyline><line x1="22" y1="12" x2="10" y2="12"></line></svg>
 Logout
 </button>
 </div>
@@ -1565,33 +1603,40 @@ Logout
 const BottomNavigation = ({ currentPage, onNavigate }) => {
 const navItems = [
 { page: 'dashboard', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> },
-{ page: 'timetable', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg> },
+{ page: 'timetable', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> },
 { page: 'trophy', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg> },
-{ page: 'profile', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> },
+{ page: 'profile', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> }
 ];
 
 return (
-<nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto h-20 bg-white border-t border-gray-200 flex justify-around items-center">
-{navItems.map(item => (
+<nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-40">
+<div className="flex justify-around h-16 max-w-md mx-auto">
+{navItems.map((item) => (
 <button
 key={item.page}
 onClick={() => onNavigate(item.page)}
-className={`nav-btn p-2 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-400'}`}
+className={`flex flex-col items-center justify-center flex-1 text-center text-xs transition-colors duration-200 ${
+currentPage === item.page ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+}`}
 >
-{item.icon}
+{React.cloneElement(item.icon, {
+className: `mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-500'}`
+})}
+<span className="font-medium capitalize">{item.page}</span>
 </button>
 ))}
+</div>
 </nav>
 );
 };
 
-// Render the App component into the 'root' div, wrapped in ErrorBoundary
-console.log("Attempting to render React App into #root.");
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.render(
 <ErrorBoundary>
 <App />
-</ErrorBoundary>
+</ErrorBoundary>,
+document.getElementById('root')
 );
 </script>
 </body>
 </html>
+�
