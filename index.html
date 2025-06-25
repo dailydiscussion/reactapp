@@ -7,14 +7,13 @@
 <meta name="description" content="Education Dashboard Self-Contained HTML Application" />
 <title>Education Dashboard</title>
 
-<!-- Tailwind CSS CDN -->
 <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- Google Fonts for Inter -->
 <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans&amp;family=Kalnia:wght@600&amp;family=Lemon&amp;family=Raleway:wght@700&amp;family=Tilt+Prism&amp;display=swap" rel="stylesheet">
 <style>
+/* Base styles */
 body {
-font-family: 'Inter',Josefin Sans;
+font-family: 'Inter', Josefin Sans;
 -webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
 background-color: #f9fafb; /* Light gray background */
 color: #1f2937; /* Darker text for readability */
@@ -58,26 +57,23 @@ transition: opacity 0.3s ease-in-out;
 }
 </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50 text-gray-800 transition-colors duration-300">
 <noscript>You need to enable JavaScript to run this app.</noscript>
-<div id="root" class="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative overflow-hidden"></div>
+<div id="root" class="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative overflow-hidden transition-colors duration-300"></div>
 
-<!-- React and ReactDOM CDNs -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<!-- Babel for JSX transformation in browser (for direct HTML use) -->
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<!-- Firebase SDKs (placed before the Babel script so global Firebase objects are available) -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 // Only import what's needed for this setup (signOut for logout simulation)
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 // Import all necessary Firestore functions, including addDoc for focus items
-import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs, addDoc, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, getDoc, getDocs, addDoc, where, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// IMPORTANT: Your actual Firebase project configuration
-// Replace with the config from your Firebase project settings
+// IMPORTANT: Replace the following firebaseConfig with YOUR OWN Firebase project configuration!
+// You can find this in your Firebase project settings -> Project settings -> General -> Your apps (Web app)
 const firebaseConfig = {
 apiKey: "AIzaSyAHowpOHnCOaQ5eackHV__Bo3M42437lXQ",
 authDomain: "daily-discussion-1040d.firebaseapp.com",
@@ -111,8 +107,9 @@ window.getDoc = getDoc;
 window.getDocs = getDocs;
 window.addDoc = addDoc; // Expose addDoc
 window.where = where; // Expose where for queries
+window.writeBatch = writeBatch; // Expose writeBatch method
 
-// Set up global __app_id for data paths
+// Set up global __app_id for data paths (using projectId as a common app identifier)
 window.__app_id = firebaseConfig.projectId;
 
 console.log("Firebase SDKs initialized successfully in script module.");
@@ -257,8 +254,10 @@ setCurrentPage('login');
 setIsLoading(false);
 console.log("App Component useEffect [init]: No persistent login found, starting at login page. Set isLoading to false.");
 }
+
 setIsAuthReady(true); // Authentication state (simulated) is now determined
 }, []); // Empty dependency array means this runs once on mount
+
 
 // Request notification permission on app load (runs after initial auth check)
 useEffect(() => {
@@ -297,6 +296,7 @@ console.log("All data streams loaded. Loading screen dismissed.");
 };
 
 // Listen for real-time updates to subjects (testData)
+console.log("App Component useEffect [data]: Setting up listener for subjects.");
 const unsubscribeSubjects = window.onSnapshot(userSubjectsCollectionRef, (snapshot) => {
 console.log("App Component useEffect [data]: Subjects snapshot received.");
 const loadedTestData = {};
@@ -326,9 +326,11 @@ showNotification("Failed to load subjects data.", 'error');
 checkAllLoaded(); // Still indicate loaded to not get stuck on loading screen
 });
 unsubscribeFunctions.push(unsubscribeSubjects);
+console.log("App Component useEffect [data]: Listener for subjects set up.");
 
 
 // Listen for real-time updates to timetable entries
+console.log("App Component useEffect [data]: Setting up listener for timetable.");
 const unsubscribeTimetable = window.onSnapshot(userTimetableCollectionRef, (snapshot) => {
 console.log("App Component useEffect [data]: Timetable snapshot received.");
 const loadedTimetableEntries = snapshot.docs.map(doc => ({
@@ -344,14 +346,16 @@ showNotification("Failed to load timetable data.", 'error');
 checkAllLoaded(); // Still indicate loaded to not get stuck on loading screen
 });
 unsubscribeFunctions.push(unsubscribeTimetable);
+console.log("App Component useEffect [data]: Listener for timetable set up.");
 
 // New: Listen for real-time updates to Today's Focus items
+console.log("App Component useEffect [data]: Setting up listener for Today's Focus.");
 const unsubscribeTodayFocus = window.onSnapshot(userTodayFocusCollectionRef, (snapshot) => {
 console.log("App Component useEffect [data]: Today's Focus snapshot received.");
 const loadedFocusItems = snapshot.docs.map(doc => ({
 id: doc.id, // Store Firestore document ID as item ID
 ...doc.data()
-}));
+})).sort((a, b) => (a.order || 0) - (b.order || 0)); // Sort by order field
 setTodayFocusItems(loadedFocusItems);
 console.log("Today's Focus data loaded/updated from Firestore:", loadedFocusItems);
 checkAllLoaded(); // Indicate that this stream has loaded
@@ -361,6 +365,7 @@ showNotification("Failed to load Today's Focus data.", 'error');
 checkAllLoaded(); // Still indicate loaded to not get stuck on loading screen
 });
 unsubscribeFunctions.push(unsubscribeTodayFocus);
+console.log("App Component useEffect [data]: Listener for Today's Focus set up.");
 
 // Cleanup listeners on unmount or userId change
 return () => {
@@ -412,7 +417,7 @@ showNotification(`Failed to add subject "${subjectName}".`, 'error');
 }
 }, [userId, testData, showNotification]);
 
-// Modified addTest to include a 'link' property
+// Modified addTest to include a 'link' and 'completed' property
 const addTest = useCallback(async (subjectName, title, mcqs, date, link = '') => { // Added link parameter with default empty string
 if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
 if (!title || !mcqs || !date) { // Subject name is handled by calling context
@@ -429,7 +434,7 @@ return;
 }
 
 try {
-const newTest = { title, mcqs: parseInt(mcqs), date, link }; // Include link in the newTest object
+const newTest = { title, mcqs: parseInt(mcqs), date, link, completed: false }; // Include link and completed status
 const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
 
 const subjectDoc = await window.getDoc(subjectDocRef);
@@ -519,13 +524,47 @@ await window.deleteDoc(window.doc(todayFocusCollectionRef, doc.id));
 setTodayFocusItems(prevItems => prevItems.filter(item => !(item.subject === subjectName && item.title === testTitle)));
 showNotification(`Test "${testTitle}" deleted from "${subjectName}".`, 'success');
 } else {
-showNotification('Subject document not found. This might be a sync issue. Please try refreshing.', 'error');
+    showNotification('Subject document not found. This might be a sync issue. Please try refreshing.', 'error');
 }
 } catch (error) {
 console.error("Error deleting test:", error);
 showNotification(`Failed to delete test "${testTitle}".`, 'error');
 }
 }, [userId, testData, showNotification]);
+
+// New function to toggle test completion status
+const handleToggleTestCompletion = useCallback(async (subjectName, testTitle, completedStatus) => {
+if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
+try {
+const subjectDocRef = window.doc(window.db, "artifacts", window.__app_id, "users", userId, "subjects", subjectName);
+const subjectDoc = await window.getDoc(subjectDocRef);
+
+if (subjectDoc.exists()) {
+const currentTests = subjectDoc.data().tests || [];
+const updatedTests = currentTests.map(test =>
+test.title === testTitle ? { ...test, completed: completedStatus } : test
+);
+await window.setDoc(subjectDocRef, { tests: updatedTests }, { merge: true });
+
+// Update Today's Focus item if it exists
+const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+const q = window.query(todayFocusCollectionRef,
+window.where("subject", "==", subjectName),
+window.where("title", "==", testTitle)
+);
+const snapshot = await window.getDocs(q);
+snapshot.forEach(async (doc) => {
+await window.setDoc(window.doc(todayFocusCollectionRef, doc.id), { completed: completedStatus }, { merge: true });
+});
+
+showNotification(`Test "${testTitle}" marked as ${completedStatus ? 'completed' : 'incomplete'}.`, 'success');
+}
+} catch (error) {
+console.error("Error toggling test completion:", error);
+showNotification("Failed to update test completion status.", 'error');
+}
+}, [userId, showNotification]);
+
 
 // Updated addFocusItem to save to Firestore
 const addFocusItem = useCallback(async (testToAdd, subjectName) => {
@@ -551,8 +590,9 @@ mcqs: testToAdd.mcqs,
 date: testToAdd.date,
 link: testToAdd.link || '', // Ensure link is saved
 subject: subjectName,
-type: "Custom",
-iconPath: testToAdd.iconPath || iconPath
+iconPath: testToAdd.iconPath || iconPath,
+completed: testToAdd.completed || false, // Carry over completion status
+order: todayFocusItems.length // Assign an order for reordering
 };
 
 const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
@@ -574,6 +614,34 @@ showNotification('Focus item removed.', 'success');
 } catch (error) {
 console.error("Error removing focus item:", error);
 showNotification("Failed to remove focus item.", 'error');
+}
+}, [userId, showNotification]);
+
+// New function to reorder focus items and update Firestore
+const reorderFocusItems = useCallback(async (newOrder) => {
+if (!userId) { showNotification('Authentication not ready. Please log in.', 'error'); return; }
+try {
+console.log("reorderFocusItems: Attempting to reorder items...");
+// Ensure window.writeBatch is callable
+if (typeof window.writeBatch !== 'function') {
+console.error("reorderFocusItems: window.writeBatch is not a function.");
+throw new Error("Firestore writeBatch function not available. Please ensure Firebase is initialized correctly.");
+}
+const batch = window.writeBatch(window.db); // Use window.writeBatch and pass db instance
+const todayFocusCollectionRef = window.collection(window.db, "artifacts", window.__app_id, "users", userId, "todayFocus");
+
+newOrder.forEach((item, index) => {
+console.log(`reorderFocusItems: Updating item ${item.id} to order ${index}`);
+const docRef = window.doc(todayFocusCollectionRef, item.id);
+batch.update(docRef, { order: index });
+});
+
+console.log(`reorderFocusItems: Committing batch with ${newOrder.length} updates.`);
+await batch.commit();
+showNotification('Focus items reordered.', 'success');
+} catch (error) {
+console.error("Error reordering focus items:", error);
+showNotification("Failed to reorder focus items.", 'error');
 }
 }, [userId, showNotification]);
 
@@ -639,7 +707,7 @@ window.scrollTo(0, 0);
 }, []);
 
 // --- Auth Logic (Simulated) ---
-const handleLogin = (enteredUsername, enteredPassword) => {
+const handleLogin = useCallback((enteredUsername, enteredPassword) => {
 const correctUsername = "nikhil"; // Your chosen username
 const correctPassword = "password123"; // Your chosen password
 const fixedUserId = "nikhil_user_id"; // A fixed user ID for Nikhil's data
@@ -662,9 +730,9 @@ console.log("handleLogin: Login successful. userId:", fixedUserId);
 showNotification("Invalid username or password.", "error");
 console.log("handleLogin: Login failed for username:", enteredUsername);
 }
-};
+}, [showNotification]); // Added showNotification to dependencies
 
-const handleLogout = async () => {
+const handleLogout = useCallback(async () => {
 console.log("handleLogout: Initiating logout process.");
 try {
 // Clear local storage for simulated persistent login
@@ -691,7 +759,18 @@ showNotification("Logged out successfully.", "info");
 console.error("handleLogout: Error during signOut or localStorage clear:", error);
 showNotification("Failed to log out.", 'error');
 }
-};
+}, [showNotification]); // Added showNotification to dependencies
+
+const handleResetLocalData = useCallback(() => {
+console.log("handleResetLocalData: Clearing local storage and reloading.");
+localStorage.removeItem('isLoggedIn');
+localStorage.removeItem('userId');
+localStorage.removeItem('userName');
+localStorage.removeItem('userEmail');
+// You might want to remove other app-specific local storage items here if they exist
+window.location.reload(); // Force a full page reload to reset React state and re-initialize Firebase
+}, []);
+
 
 // Render Logic based on currentPage and auth readiness
 const renderPage = () => {
@@ -724,6 +803,7 @@ onNavigate={navigateTo} // Pass onNavigate prop
 userName={userName} // Pass userName
 userEmail={userEmail} // Pass userEmail
 currentUserId={userId} // Pass currentUserId
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass the handler
 />;
 case 'dashboard':
 return <DashboardPage
@@ -735,6 +815,7 @@ onNavigate={navigateTo} // Pass onNavigate prop
 userName={userName} // Pass userName
 userEmail={userEmail} // Pass userEmail
 currentUserId={userId} // Pass currentUserId
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass the handler
 />;
 case 'timetable':
 return <TimetablePage
@@ -753,6 +834,7 @@ currentSelectedSubject={currentSelectedSubject}
 setCurrentSelectedSubject={setCurrentSelectedSubject}
 addTest={addTest}
 deleteTest={deleteTest}
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass the new handler
 />;
 case 'edit-focus':
 return <EditFocusPage
@@ -760,7 +842,9 @@ testData={testData}
 todayFocusItems={todayFocusItems}
 addFocusItem={addFocusItem}
 removeFocusItem={removeFocusItem}
+reorderFocusItems={reorderFocusItems} // Pass reorder function
 onBackToDashboard={() => navigateTo('dashboard')}
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass the new handler
 />;
 case 'manage-tests':
 return <ManageContentPage
@@ -772,7 +856,14 @@ deleteTest={deleteTest}
 onBackToProfile={() => navigateTo('profile')}
 />;
 case 'profile':
-return <ProfilePage onManageContent={() => navigateTo('manage-tests')} onLogout={handleLogout} currentUserId={userId} userName={userName} userEmail={userEmail} />;
+return <ProfilePage
+onManageContent={() => navigateTo('manage-tests')}
+onLogout={handleLogout}
+currentUserId={userId}
+userName={userName}
+userEmail={userEmail}
+onResetLocalData={handleResetLocalData} // Pass the new reset function
+/>;
 default:
 console.warn("renderPage: Unknown currentPage. Defaulting to Dashboard.");
 return <DashboardPage
@@ -784,6 +875,7 @@ onNavigate={navigateTo} // Pass onNavigate prop
 userName={userName} // Pass userName
 userEmail={userEmail} // Pass userEmail
 currentUserId={userId} // Pass currentUserId
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass the handler
 />;
 }
 };
@@ -869,7 +961,7 @@ text = 'Good afternoon';
 emoji = '👋';
 } else if (hour >= 17 && hour < 22) {
 text = 'Good evening';
-emoji = '🌆';
+emoji = '🌙'; /* Changed to crescent moon for evening */
 } else {
 text = 'Time to sleep';
 emoji = '😴';
@@ -896,16 +988,16 @@ return (
 // StatCard Component - 'unit' and 'title' removed
 const StatCard = ({ category, value, icon }) => {
 return (
-<div className="bg-[#FEFBF2] p-4 rounded-xl flex flex-col items-start justify-center text-left"> {/* Changed items-center to items-start and text-center to text-left */}
-{icon}
+<div className="bg-[#FEFBF2] p-4 rounded-xl flex flex-col items-start justify-center text-left">
+{React.cloneElement(icon, { className: `mb-2 text-gray-600 ${icon.props.className || ''}` })}
 <p className="text-3xl font-bold mt-2">{value}</p>
 <p className="text-sm text-gray-600 mt-1">{category}</p>
 </div>
 );
 };
 
-// FocusItemCard Component - now clickable
-const FocusItemCard = ({ item, onRemove }) => {
+// FocusItemCard Component - now clickable with completion toggle
+const FocusItemCard = ({ item, onRemove, handleToggleTestCompletion, onMoveUp, onMoveDown, isFirst, isLast, allowReorder }) => {
 const handleCardClick = () => {
 if (item.link && item.link.startsWith('http')) {
 window.open(item.link, '_blank');
@@ -915,29 +1007,76 @@ console.warn(`Invalid link for ${item.title}: ${item.link}. Must start with http
 }
 };
 
+const handleCheckboxChange = (e) => {
+e.stopPropagation(); // Prevent card click when clicking checkbox
+handleToggleTestCompletion(item.subject, item.title, e.target.checked);
+};
+
 return (
 <div
 id={`focus-item-${item.id}`}
-className="relative flex-shrink-0 w-full bg-gray-100 p-4 rounded-xl border border-gray-200 cursor-pointer hover:shadow-md transition-shadow duration-200"
+className={`relative flex-shrink-0 w-full p-4 rounded-xl border transition-all duration-300 ease-in-out
+${item.completed ? 'bg-green-50 border-green-200' : 'bg-gray-100 border-gray-200'}
+cursor-pointer hover:shadow-md`}
 onClick={handleCardClick}
 >
-<button className="absolute top-2 right-2 text-gray-400 hover:text-red-500 rounded-full p-1" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-</button>
-<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-3">
+{/* Left section: Checkbox, Icon, Title, Details */}
+<div className="flex items-start flex-grow pr-16"> {/* Add right padding to prevent overlap with buttons */}
+{/* Completion Checkbox */}
+<input
+type="checkbox"
+checked={item.completed}
+onChange={handleCheckboxChange}
+className="h-5 w-5 text-blue-600 bg-gray-200 border-gray-300 rounded focus:ring-blue-500 mt-1 mr-3 flex-shrink-0"
+onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with checkbox
+/>
+<div className="flex-shrink-0 mr-3"> {/* Icon container */}
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5">
 <path d={item.iconPath}></path>
 </svg>
-<h3 className="font-semibold text-gray-800 leading-tight">{item.title}</h3>
-<div className="flex justify-between items-center mt-3 text-sm">
-<span className="text-gray-500">({item.mcqs} MCQs)</span>
-<span className="font-semibold text-gray-700">{item.type}</span>
 </div>
+<div> {/* Title and details container */}
+<h3 className="font-semibold text-gray-800 leading-tight">{item.title}</h3>
+<div className="flex items-center mt-1 text-sm">
+<span className="text-gray-500">({item.mcqs} MCQs)</span>
+</div>
+</div>
+</div>
+
+{/* Right section: Reorder and Remove Buttons */}
+{allowReorder ? (
+<div className="absolute top-2 right-2 flex flex-col items-center space-y-1">
+<button
+onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+disabled={isFirst}
+className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+aria-label="Move up"
+>
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+</button>
+<button
+onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+disabled={isLast}
+className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+aria-label="Move down"
+>
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+</button>
+<button className="p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+</button>
+</div>
+) : (
+<button className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+</button>
+)}
 </div>
 );
 };
 
 // DashboardPage Component - Stat calculations updated
-const DashboardPage = ({ testData, todayFocusItems, onEditFocus, removeFocusItem, onNavigate, userName, userEmail, currentUserId }) => {
+const DashboardPage = ({ testData, todayFocusItems, onEditFocus, removeFocusItem, onNavigate, userName, userEmail, currentUserId, handleToggleTestCompletion }) => {
 const { useState, useEffect } = React;
 const [stats, setStats] = useState({ days: 0, mcqs: 0, tests: 0, subjects: 0 });
 
@@ -970,14 +1109,14 @@ subjects: uniqueSubjects.size
 return (
 <div id="page-dashboard" className="page px-6 py-8">
 <div
-className="flex items-center gap-4 bg-gray-100 p-4 rounded-xl mb-8 cursor-pointer"
+className="flex items-center gap-4 bg-gray-100 p-4 rounded-xl mb-8 cursor-pointer transition-colors duration-300"
 onClick={() => onNavigate('profile')} // Navigate to profile on click
 >
 <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=NK" alt="User Avatar" className="w-16 h-16 rounded-full" />
 <div>
-<h2 className="font-bold text-xl text-gray-800">Welcome {userName || 'User'}</h2> {/* Added "Welcome" */}
-<Greeting userName={userName || 'User'} /> {/* Replaced email with Greeting component */}
-<p className="text-sm text-gray-600 break-all">User ID: {currentUserId || 'Not authenticated'}</p> {/* Display User ID */}
+<h2 className="font-bold text-xl text-gray-800">Welcome {userName || 'User'}</h2>
+<Greeting userName={userName || 'User'} />
+<p className="text-sm text-600 break-all">User ID: {currentUserId || 'Not authenticated'}</p>
 </div>
 </div>
 
@@ -1027,7 +1166,13 @@ icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 
 <p className="text-gray-500 text-center w-full">No focus items for today. Click "Edit Focus" to add some.</p>
 ) : (
 todayFocusItems.map(item => (
-<FocusItemCard key={item.id} item={item} onRemove={removeFocusItem} />
+<FocusItemCard
+key={item.id}
+item={item}
+onRemove={removeFocusItem}
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass handler
+allowReorder={false} // Disable reorder buttons on dashboard view
+/>
 ))
 )}
 </div>
@@ -1109,13 +1254,14 @@ setNewTime('');
 const subjects = Object.keys(testData);
 
 const calculateProgress = useCallback(() => {
-const totalTests = testData[currentTimetableSubject] ? testData[currentTimetableSubject].length : 0;
-const completedTests = totalTests; // Assuming all tests in `testData` are "completed" for simplicity
+const subjectTests = testData[currentTimetableSubject] || [];
+const totalTests = subjectTests.length;
+const completedTests = subjectTests.filter(test => test.completed).length;
 return totalTests > 0 ? (completedTests / totalTests) * 100 : 0;
 }, [currentTimetableSubject, testData]);
 
 const progressPercentage = calculateProgress();
-const completedCount = testData[currentTimetableSubject] ? testData[currentTimetableSubject].length : 0;
+const completedCount = testData[currentTimetableSubject] ? testData[currentTimetableSubject].filter(test => test.completed).length : 0;
 const totalCount = testData[currentTimetableSubject] ? testData[currentTimetableSubject].length : 0;
 
 
@@ -1158,7 +1304,7 @@ disabled={subjects.length === 0}
 </select>
 </div>
 
-<div id="timetable-progress-card" onClick={() => navigateToTrophyPage(currentTimetableSubject)} className="bg-green-50 p-5 rounded-2xl flex items-center justify-between mb-8 cursor-pointer">
+<div id="timetable-progress-card" onClick={() => navigateToTrophyPage(currentTimetableSubject)} className="bg-green-50 p-5 rounded-2xl flex items-center justify-between mb-8 cursor-pointer transition-colors duration-300">
 <CircularProgressBar percentage={progressPercentage} />
 <div className="flex-1 ml-4">
 <p className="text-sm text-gray-500">Subject</p>
@@ -1211,8 +1357,8 @@ sortedDates.map(date => (
 );
 };
 
-// TestCard Component - now clickable
-const TestCard = ({ test, subject, isEditMode, onDelete }) => {
+// TestCard Component - now clickable with completion toggle and color-coding
+const TestCard = ({ test, subject, isEditMode, onDelete, handleToggleTestCompletion }) => {
 const handleCardClick = () => {
 if (!isEditMode && test.link && test.link.startsWith('http')) {
 window.open(test.link, '_blank');
@@ -1222,21 +1368,48 @@ console.warn(`Invalid link for ${test.title}: ${test.link}. Must start with http
 }
 };
 
+const handleCheckboxChange = (e) => {
+e.stopPropagation(); // Prevent card click when clicking checkbox
+handleToggleTestCompletion(subject, test.title, e.target.checked);
+};
+
+const cardClasses = `
+relative bg-gray-100 p-4 rounded-lg flex justify-between items-center transition-colors duration-300
+${test.completed ? 'bg-green-50 border border-green-200' : 'border border-gray-200'}
+${test.link && !isEditMode ? 'cursor-pointer hover:shadow-md' : ''}
+`;
+
 return (
 <div
 id={`trophy-test-item-${subject}-${test.title}`}
-className={`bg-gray-100 p-4 rounded-lg flex justify-between items-center ${test.link && !isEditMode ? 'cursor-pointer hover:shadow-md transition-shadow duration-200' : ''}`}
+className={cardClasses}
 onClick={handleCardClick}
 >
+<div className="flex items-center flex-grow">
+{/* Completion Checkbox */}
+<input
+type="checkbox"
+checked={test.completed}
+onChange={handleCheckboxChange}
+className="h-5 w-5 text-blue-600 bg-gray-200 border-gray-300 rounded focus:ring-blue-500 mr-3"
+onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with checkbox
+/>
 <div>
 <h4 className="font-semibold text-gray-800">{test.title}</h4>
 <p className="text-sm text-gray-500 mt-1">{test.mcqs} MCQs</p>
 <p className="text-xs text-gray-400 mt-1">Completed on {test.date}</p>
-{/* The explicit "View Test" link is now removed, as the whole card is clickable */}
 </div>
-{isEditMode ? (
-<button className="delete-trophy-test-btn text-red-500 hover:text-red-700 px-2 py-1 rounded-full text-sm font-medium" onClick={(e) => { e.stopPropagation(); onDelete(subject, test.title); }}>Delete</button>
-) : (
+</div>
+{isEditMode && (
+<button
+className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200"
+onClick={(e) => { e.stopPropagation(); onDelete(subject, test.title); }}
+aria-label="Delete test"
+>
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+</button>
+)}
+{!isEditMode && (
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><polyline points="9 18 15 12 9 6"></polyline></svg>
 )}
 </div>
@@ -1245,13 +1418,14 @@ onClick={handleCardClick}
 
 
 // TestsCompletedPage Component
-const TestsCompletedPage = ({ testData, currentSelectedSubject, setCurrentSelectedSubject, addTest, deleteTest }) => {
+const TestsCompletedPage = ({ testData, currentSelectedSubject, setCurrentSelectedSubject, addTest, deleteTest, handleToggleTestCompletion }) => {
 const { useState } = React;
 const [trophyEditMode, setTrophyEditMode] = useState(false);
 const [newTestTitle, setNewTestTitle] = useState('');
 const [newTestMcqs, setNewTestMcqs] = useState('');
 const [newTestDate, setNewTestDate] = useState('');
 const [newTestLink, setNewTestLink] = useState(''); // New state for the link
+const [searchQuery, setSearchQuery] = useState(''); // New: Search query state
 
 const handleAddTest = () => {
 addTest(currentSelectedSubject, newTestTitle, newTestMcqs, newTestDate, newTestLink); // Pass newTestLink
@@ -1263,6 +1437,11 @@ setNewTestLink(''); // Clear link after adding
 
 const subjects = Object.keys(testData);
 
+// Filter tests based on search query
+const filteredTests = (testData[currentSelectedSubject] || []).filter(test =>
+test.title.toLowerCase().includes(searchQuery.toLowerCase())
+);
+
 return (
 <div id="page-trophy" className="page px-6 py-8">
 <header className="flex items-center justify-between mb-2">
@@ -1273,11 +1452,24 @@ return (
 </header>
 <p className="text-gray-500 mb-6">A peek into your previous test performances</p>
 
-<div className="flex space-x-3 mb-6" id="subject-filters-container">
+{/* Search Input */}
+<div className="mb-6">
+<input
+type="text"
+placeholder="Search tests..."
+className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+value={searchQuery}
+onChange={(e) => setSearchQuery(e.target.value)}
+/>
+</div>
+
+
+<div className="flex space-x-3 mb-6 overflow-x-auto no-scrollbar" id="subject-filters-container">
 {subjects.map(subject => (
 <button
 key={subject}
-className={`subject-filter flex-1 text-left p-3 rounded-lg ${currentSelectedSubject === subject ? 'bg-slate-600 text-white shadow' : 'bg-gray-100 text-gray-700'}`}
+className={`subject-filter flex-shrink-0 text-left p-3 rounded-lg transition-colors duration-200
+${currentSelectedSubject === subject ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-700'}`}
 onClick={() => setCurrentSelectedSubject(subject)}
 >
 <p className="font-bold">{subject}</p>
@@ -1295,23 +1487,22 @@ onClick={() => setCurrentSelectedSubject(subject)}
 
 {trophyEditMode && (
 <div id="add-new-test-form-container" className="bg-gray-100 p-4 rounded-lg mb-6">
-<h4 className="font-bold text-gray-800 mb-3">Add New Test to <span id="current-subject-name-for-add">{currentSelectedSubject}</span></h4>
+<h4 className="font-bold text-gray-800 mb-3">Add New Test</h4>
 <div className="mb-3">
-<label htmlFor="new-trophy-test-title" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
-<input type="text" id="new-trophy-test-title" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., New Test Name" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
+<label htmlFor="new-test-title-input" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
+<input type="text" id="new-test-title-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Chapter 1 Quiz" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
 </div>
 <div className="mb-3">
-<label htmlFor="new-trophy-test-mcqs" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
-<input type="number" id="new-trophy-test-mcqs" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 40" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
+<label htmlFor="new-test-mcqs-input" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
+<input type="number" id="new-test-mcqs-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 25" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
+</div>
+<div className="mb-3">
+<label htmlFor="new-test-date-input" className="block text-sm font-medium text-gray-700 mb-1">Test Date</label>
+<input type="date" id="new-test-date-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
 </div>
 <div className="mb-4">
-<label htmlFor="new-trophy-test-date" className="block text-sm font-medium text-gray-700 mb-1">Completion Date</label>
-<input type="date" id="new-trophy-test-date" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
-</div>
-{/* New Test Link Input */}
-<div className="mb-4">
-<label htmlFor="new-trophy-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
-<input type="url" id="new-trophy-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
+<label htmlFor="new-test-link-input" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
+<input type="url" id="new-test-link-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/quiz" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
 </div>
 <button onClick={handleAddTest} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
 Add Test
@@ -1319,12 +1510,19 @@ Add Test
 </div>
 )}
 
-<div id="test-list-container" className="space-y-3">
-{testData[currentSelectedSubject]?.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No tests available for {currentSelectedSubject}.</p>
+<div id="trophy-tests-list" className="space-y-4">
+{filteredTests.length === 0 ? (
+<p className="text-gray-500 text-center py-4">No tests found for this subject or matching your search. Add some!</p>
 ) : (
-testData[currentSelectedSubject]?.map(test => (
-<TestCard key={test.title} test={test} subject={currentSelectedSubject} isEditMode={trophyEditMode} onDelete={deleteTest} />
+filteredTests.map(test => (
+<TestCard
+key={`${currentSelectedSubject}-${test.title}`}
+test={test}
+subject={currentSelectedSubject}
+isEditMode={trophyEditMode}
+onDelete={deleteTest}
+handleToggleTestCompletion={handleToggleTestCompletion}
+/>
 ))
 )}
 </div>
@@ -1332,106 +1530,137 @@ testData[currentSelectedSubject]?.map(test => (
 );
 };
 
-// AvailableTestCard for EditFocusPage
-const AvailableTestCard = ({ test, subject, isAdded, onAdd, onRemove }) => {
-const itemId = `${subject}-${test.title}`; // This is a temporary ID for non-Firestore items in `allTests`
-const buttonText = isAdded ? 'Added' : 'Add';
-const buttonClasses = isAdded ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600';
-const itemOpacity = isAdded ? 'opacity-50' : '';
+// EditFocusPage Component (for Today's Focus)
+const EditFocusPage = ({ testData, todayFocusItems, addFocusItem, removeFocusItem, reorderFocusItems, onBackToDashboard, handleToggleTestCompletion }) => {
+const { useState, useEffect, useRef } = React;
+const [activeSubject, setActiveSubject] = useState('');
+const [searchTerm, setSearchTerm] = useState('');
+const dragItem = useRef(); // Ref for the item being dragged
+const dragOverItem = useRef(); // Ref for the item being dragged over
 
-return (
-<div id={`available-test-${itemId}`} className={`bg-gray-100 p-4 rounded-lg flex justify-between items-center ${itemOpacity}`}>
-<div>
-<h4 className="font-semibold text-gray-800">{test.title}</h4>
-<p className="text-sm text-gray-500 mt-1">{test.mcqs} MCQs - {subject}</p>
-</div>
-<button
-className={`text-white px-3 py-1 rounded-full text-sm transition duration-200 ${buttonClasses}`}
-onClick={() => isAdded ? onRemove(test.id) : onAdd(test, subject)} // Use test.id for removal (Firestore ID)
-disabled={isAdded}
->
-{buttonText}
-</button>
-</div>
-);
+useEffect(() => {
+const subjects = Object.keys(testData);
+if (subjects.length > 0 && !activeSubject) {
+setActiveSubject(subjects[0]);
+}
+}, [testData, activeSubject]);
+
+const handleDragStart = (e, index) => {
+dragItem.current = index;
+};
+
+const handleDragEnter = (e, index) => {
+dragOverItem.current = index;
+};
+
+const handleDragEnd = () => {
+const newTodayFocusItems = [...todayFocusItems];
+const draggedItemContent = newTodayFocusItems[dragItem.current];
+newTodayFocusItems.splice(dragItem.current, 1); // Remove dragged item
+newTodayFocusItems.splice(dragOverItem.current, 0, draggedItemContent); // Insert at new position
+
+dragItem.current = null;
+dragOverItem.current = null;
+reorderFocusItems(newTodayFocusItems); // Call the reorder function to update Firestore and state
 };
 
 
-// EditFocusPage Component
-const EditFocusPage = ({ testData, todayFocusItems, addFocusItem, removeFocusItem, onBackToDashboard }) => {
-const { useState } = React;
-// Generate a temporary 'id' for items from testData that don't have a Firestore ID yet
-// This 'id' is only for client-side React keying and comparison before it hits Firestore
-const allTests = Object.keys(testData).flatMap(subject =>
-testData[subject].map(test => ({ ...test, subject, id: `${subject}-${test.title}` }))
+const availableTests = activeSubject ? testData[activeSubject] || [] : [];
+const filteredAvailableTests = availableTests.filter(test =>
+test.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+!todayFocusItems.some(item => item.subject === activeSubject && item.title === test.title)
 );
+
+const handleCheckboxChange = (testTitle, completedStatus) => {
+handleToggleTestCompletion(activeSubject, testTitle, completedStatus);
+};
+
 
 return (
 <div id="page-edit-focus" className="page px-6 py-8">
 <header className="flex items-center justify-between mb-2">
-<h1 className="text-3xl font-bold text-gray-900">Edit Focus</h1>
+<h1 className="text-3xl font-bold text-gray-900">Edit Today's Focus</h1>
 <button onClick={onBackToDashboard} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Done</button>
 </header>
-<p className="text-gray-500 mb-6">Select tests to add to your Today's Focus:</p>
-<div id="available-tests-list" className="space-y-3 mb-8">
-{allTests.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No tests available to add.</p>
+<p className="text-gray-500 mb-6">Manage what you want to focus on today.</p>
+
+<h3 className="font-bold text-lg text-gray-800 mb-3">Currently Focused:</h3>
+<div className="space-y-4 mb-6">
+{todayFocusItems.length === 0 ? (
+<p className="text-gray-500 text-center">No items in Today's Focus. Add some below!</p>
 ) : (
-allTests.map(test => (
-<AvailableTestCard
-key={test.id} // Use the generated local id for React keying
-test={test}
-subject={test.subject}
-// Check if the item is already in todayFocusItems by its Firestore-generated ID OR by its subject/title combo
-isAdded={todayFocusItems.some(item => item.id === test.id || (item.subject === test.subject && item.title === test.title))}
-onAdd={addFocusItem}
+todayFocusItems.map((item, index) => (
+<FocusItemCard
+key={item.id} // Use Firestore ID for key
+item={item}
 onRemove={removeFocusItem}
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass handler
+allowReorder={true} // Enable reorder buttons
+onMoveUp={() => {
+if (index > 0) {
+const newOrder = [...todayFocusItems];
+[newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+reorderFocusItems(newOrder);
+}
+}}
+onMoveDown={() => {
+if (index < todayFocusItems.length - 1) {
+const newOrder = [...todayFocusItems];
+[newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
+reorderFocusItems(newOrder);
+}
+}}
+isFirst={index === 0}
+isLast={index === todayFocusItems.length - 1}
 />
 ))
 )}
 </div>
 
-<div className="mt-8 pt-4 border-t border-gray-200">
-<h2 className="text-xl font-bold text-gray-900 mb-4">Tests in Today's Focus</h2>
-<div id="current-focus-tests-ui" className="space-y-2">
-{todayFocusItems.length === 0 ? (
-<p className="text-gray-500 text-center w-full">No focus items for today.</p>
-) : (
-todayFocusItems.map(item => (
-<div key={item.id} className="bg-blue-50 p-3 rounded-lg flex justify-between items-center">
-<div>
-<h4 className="font-semibold text-gray-800">{item.title}</h4>
-<p className="text-sm text-gray-500">{item.subject}</p>
-</div>
-<button className="remove-focus-item-quick-view text-red-500 hover:text-red-700 px-2 py-1 rounded-full text-sm font-medium" onClick={() => removeFocusItem(item.id)}>Remove</button>
-</div>
-))
-)}
-</div>
-</div>
-</div>
-);
-};
+<hr className="my-6 border-t border-gray-200" />
 
-// ManagedSubjectSection Component
-const ManagedSubjectSection = ({ subjectName, tests, onDeleteSubject, onDeleteTest }) => {
-return (
-<div className="bg-gray-100 p-4 rounded-lg shadow-sm mb-4">
-<div className="flex justify-between items-center mb-3">
-<h3 className="font-bold text-lg text-gray-800">{subjectName}</h3>
-<button onClick={() => onDeleteSubject(subjectName)} className="delete-subject-btn bg-red-500 text-white px-3 py-1 rounded-full text-sm hover:bg-red-600 transition duration-200">Delete Subject</button>
+<h3 className="font-bold text-lg text-gray-800 mb-3">Add Items to Focus:</h3>
+<div className="mb-4">
+<label htmlFor="select-subject-for-focus" className="block text-sm font-medium text-gray-700 mb-1">Select Subject:</label>
+<select
+id="select-subject-for-focus"
+className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+value={activeSubject}
+onChange={(e) => setActiveSubject(e.target.value)}
+>
+{Object.keys(testData).length === 0 && <option value="">No Subjects Available</option>}
+{Object.keys(testData).map(subject => (
+<option key={subject} value={subject}>{subject}</option>
+))}
+</select>
 </div>
-<div className="space-y-2">
-{tests.length === 0 ? (
-<p className="text-gray-500 text-sm italic">No tests in this subject.</p>
+
+<div className="mb-4">
+<input
+type="text"
+placeholder="Search tests to add..."
+className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+value={searchTerm}
+onChange={(e) => setSearchTerm(e.target.value)}
+/>
+</div>
+
+<div className="space-y-3">
+{filteredAvailableTests.length === 0 ? (
+<p className="text-gray-500 text-center py-4">No tests available to add from {activeSubject || 'selected subject'} or already added.</p>
 ) : (
-tests.map(test => (
-<div key={test.title} className="flex justify-between items-center bg-white p-3 rounded-md border border-gray-200 text-sm">
-<span>{test.title} ({test.mcqs} MCQs, {test.date})</span>
-{test.link && (
-<a href={test.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs ml-2" onClick={(e) => e.stopPropagation()}>Link</a>
-)}
-<button onClick={() => onDeleteTest(subjectName, test.title)} className="delete-test-btn text-red-500 hover:text-red-700 font-medium ml-2">Delete</button>
+filteredAvailableTests.map(test => (
+<div key={test.title} className="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
+<div>
+<h4 className="font-semibold text-gray-800">{test.title}</h4>
+<p className="text-sm text-gray-500">{test.mcqs} MCQs</p>
+</div>
+<button
+onClick={() => addFocusItem(test, activeSubject)}
+className="bg-blue-500 text-white text-sm font-medium px-3 py-1 rounded-md hover:bg-blue-600 transition-colors duration-200"
+>
+Add
+</button>
 </div>
 ))
 )}
@@ -1444,11 +1673,11 @@ tests.map(test => (
 const ManageContentPage = ({ testData, addSubject, addTest, deleteSubject, deleteTest, onBackToProfile }) => {
 const { useState } = React;
 const [newSubjectName, setNewSubjectName] = useState('');
-const [selectedSubjectForTest, setSelectedSubjectForTest] = useState('');
+const [newTestSubject, setNewTestSubject] = useState('');
 const [newTestTitle, setNewTestTitle] = useState('');
 const [newTestMcqs, setNewTestMcqs] = useState('');
 const [newTestDate, setNewTestDate] = useState('');
-const [newTestLink, setNewTestLink] = useState(''); // New state for the link
+const [newTestLink, setNewTestLink] = useState('');
 
 const handleAddSubject = () => {
 addSubject(newSubjectName);
@@ -1456,79 +1685,125 @@ setNewSubjectName('');
 };
 
 const handleAddTest = () => {
-addTest(selectedSubjectForTest, newTestTitle, newTestMcqs, newTestDate, newTestLink); // Pass newTestLink
+addTest(newTestSubject, newTestTitle, newTestMcqs, newTestDate, newTestLink);
 setNewTestTitle('');
 setNewTestMcqs('');
 setNewTestDate('');
-setNewTestLink(''); // Clear link after adding
+setNewTestLink('');
 };
 
 const subjects = Object.keys(testData);
 
-return (
-<div id="page-manage-tests" className="page px-6 py-8">
-<header className="flex items-center justify-between mb-6">
-<h1 className="text-3xl font-bold text-gray-900">Manage Content</h1>
-<button onClick={onBackToProfile} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Done</button>
-</header>
+// Set default subject for add test form if not already set
+React.useEffect(() => {
+if (subjects.length > 0 && !newTestSubject) {
+setNewTestSubject(subjects[0]);
+}
+}, [subjects, newTestSubject]);
 
-<h2 className="text-xl font-bold text-gray-800 mb-4">Add New Subject</h2>
-<div className="mb-8 p-4 bg-gray-100 rounded-lg">
+
+return (
+<div id="page-manage-content" className="page px-6 py-8">
+<header className="flex items-center justify-between mb-2">
+<h1 className="text-3xl font-bold text-gray-900">Manage Content</h1>
+<button onClick={onBackToProfile} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Back to Profile</button>
+</header>
+<p className="text-gray-500 mb-6">Add or remove subjects and tests.</p>
+
+{/* Add Subject Form */}
+<div className="bg-gray-100 p-4 rounded-lg mb-6">
+<h3 className="font-bold text-gray-800 mb-3">Add New Subject</h3>
 <div className="mb-4">
-<label htmlFor="new-subject-name" className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
-<input type="text" id="new-subject-name" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Biochemistry" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} />
+<label htmlFor="new-subject-name-input" className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
+<input type="text" id="new-subject-name-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Biology" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} />
 </div>
-<button onClick={handleAddSubject} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300">
+<button onClick={handleAddSubject} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
 Add Subject
 </button>
 </div>
 
-<h2 className="text-xl font-bold text-gray-800 mb-4">Add New Test</h2>
-<div className="mb-8 p-4 bg-gray-100 rounded-lg">
-<div className="mb-4">
-<label htmlFor="select-subject-for-test" className="block text-sm font-medium text-gray-700 mb-1">Select Subject</label>
-<select id="select-subject-for-test" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={selectedSubjectForTest} onChange={(e) => setSelectedSubjectForTest(e.target.value)}>
-<option value="">Select a Subject</option>
+{/* Subject List with Delete */}
+<div className="mb-8">
+<h3 className="font-bold text-gray-800 mb-3">Existing Subjects</h3>
+{subjects.length === 0 ? (
+<p className="text-gray-500 text-center py-4">No subjects added yet.</p>
+) : (
+<div className="space-y-3">
+{subjects.map(subject => (
+<div key={subject} className="bg-white p-3 rounded-lg flex items-center justify-between shadow-sm">
+<p className="font-medium text-gray-800">{subject}</p>
+<button onClick={() => deleteSubject(subject)} className="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 rounded-full">
+Delete
+</button>
+</div>
+))}
+</div>
+)}
+</div>
+
+{/* Add Test Form */}
+<div className="bg-gray-100 p-4 rounded-lg mb-6">
+<h3 className="font-bold text-gray-800 mb-3">Add New Test</h3>
+<div className="mb-3">
+<label htmlFor="select-test-subject" className="block text-sm font-medium text-gray-700 mb-1">Select Subject</label>
+<select
+id="select-test-subject"
+className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+value={newTestSubject}
+onChange={(e) => setNewTestSubject(e.target.value)}
+disabled={subjects.length === 0}
+>
+{subjects.length === 0 && <option value="">No Subjects Available</option>}
 {subjects.map(subject => (
 <option key={subject} value={subject}>{subject}</option>
 ))}
 </select>
 </div>
-<div className="mb-4">
-<label htmlFor="new-test-title" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
-<input type="text" id="new-test-title" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Carbohydrate Metabolism" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
+<div className="mb-3">
+<label htmlFor="new-test-title-manage" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
+<input type="text" id="new-test-title-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Midterm Exam" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
+</div>
+<div className="mb-3">
+<label htmlFor="new-test-mcqs-manage" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
+<input type="number" id="new-test-mcqs-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 50" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
+</div>
+<div className="mb-3">
+<label htmlFor="new-test-date-manage" className="block text-sm font-medium text-gray-700 mb-1">Test Date</label>
+<input type="date" id="new-test-date-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
 </div>
 <div className="mb-4">
-<label htmlFor="new-test-mcqs" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
-<input type="number" id="new-test-mcqs" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 50" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
-</div>
-<div className="mb-4">
-<label htmlFor="new-test-date" className="block text-sm font-medium text-gray-700 mb-1">Completion Date</label>
-<input type="date" id="new-test-date" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
-</div>
-{/* New Test Link Input */}
-<div className="mb-4">
-<label htmlFor="new-manage-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
-<input type="url" id="new-manage-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
+<label htmlFor="new-test-link-manage" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
+<input type="url" id="new-test-link-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/exam" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
 </div>
 <button onClick={handleAddTest} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
 Add Test
 </button>
 </div>
 
-<h2 className="text-xl font-bold text-gray-800 mb-4">Existing Content</h2>
-<div id="manage-content-list" className="space-y-4">
+{/* Test List by Subject with Delete */}
+<div>
+<h3 className="font-bold text-gray-800 mb-3">Existing Tests</h3>
 {subjects.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No subjects available. Add a new subject above.</p>
+<p className="text-gray-500 text-center py-4">No tests added yet. Add a subject first.</p>
 ) : (
 subjects.map(subject => (
-<ManagedSubjectSection
-key={subject}
-subjectName={subject}
-tests={testData[subject]}
-onDeleteSubject={deleteSubject}
-onDeleteTest={deleteTest}
-/>
+<div key={subject} className="mb-6 bg-white p-4 rounded-lg shadow-sm">
+<h4 className="font-semibold text-gray-800 mb-3">{subject}</h4>
+{testData[subject]?.length === 0 ? (
+<p className="text-gray-500 text-center text-sm py-2">No tests for this subject.</p>
+) : (
+<div className="space-y-3">
+{testData[subject].map(test => (
+<div key={`${subject}-${test.title}`} className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
+<p className="text-gray-800">{test.title} ({test.mcqs} MCQs)</p>
+<button onClick={() => deleteTest(subject, test.title)} className="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 rounded-full">
+Delete
+</button>
+</div>
+))}
+</div>
+)}
+</div>
 ))
 )}
 </div>
@@ -1537,62 +1812,39 @@ onDeleteTest={deleteTest}
 };
 
 // ProfilePage Component
-const ProfilePage = ({ onManageContent, onLogout, currentUserId, userName, userEmail }) => {
-    // Function to show a notification for unimplemented features
-    const showUnimplementedFeatureNotification = () => {
-        // Assuming there's a global showNotification function available from App component
-        if (typeof window.showNotification === 'function') {
-            window.showNotification('This feature is not yet implemented.', 'info');
-        } else {
-            console.warn('showNotification function is not available.');
-        }
-    };
-
+const ProfilePage = ({ onManageContent, onLogout, currentUserId, userName, userEmail, onResetLocalData }) => {
 return (
 <div id="page-profile" className="page px-6 py-8">
-<header className="mb-6">
-<h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
-<p className="text-gray-500 mt-2">Manage your account and app settings.</p>
+<header className="flex items-center justify-between mb-2">
+<h1 className="text-3xl font-bold text-gray-900">Profile</h1>
 </header>
+<p className="text-gray-500 mb-6">Manage your account and app data.</p>
 
-<div className="bg-gray-100 p-6 rounded-lg shadow-md mb-6">
-<div className="flex items-center space-x-4">
+<div className="bg-gray-100 p-6 rounded-lg mb-6">
+<h3 className="font-bold text-gray-800 mb-3">Account Information</h3>
+<div className="flex items-center gap-4 mb-4">
 <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=NK" alt="User Avatar" className="w-16 h-16 rounded-full" />
 <div>
-<h2 className="text-xl font-bold text-gray-800">{userName || 'User'}</h2>
-<p className="text-gray-600 text-sm">{userEmail || 'No Email'}</p>
-<p className="text-xs text-gray-500 break-all">User ID: {currentUserId || 'Not authenticated'}</p>
+<p className="font-semibold text-gray-800 text-lg">{userName || 'Guest User'}</p>
+<p className="text-sm text-gray-600">{userEmail || 'N/A'}</p>
+<p className="text-xs text-gray-500 break-all">ID: {currentUserId || 'N/A'}</p>
 </div>
 </div>
-</div>
-
-<div className="space-y-4 mb-8">
-    {/* Converted to div and added onClick for unimplemented feature */}
-    <div
-        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
-        onClick={showUnimplementedFeatureNotification}
-    >
-        Edit Profile
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </div>
-    {/* Corrected typo items-around to items-center and converted to div */}
-    <div
-        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
-        onClick={showUnimplementedFeatureNotification}
-    >
-        Subscription
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </div>
-    <button onClick={onManageContent} className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200">
-        Manage Subjects & Tests
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </button>
+<button onClick={onManageContent} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
+Manage Subjects & Tests
+</button>
 </div>
 
-<div className="mt-auto pt-6 border-t border-gray-200">
-<button onClick={onLogout} className="w-full bg-red-100 text-red-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:bg-red-200 transition duration-200">
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="17 16 22 12 17 8"></polyline><line x1="22" y1="12" x2="10" y2="12"></line></svg>
-Logout
+<div className="bg-red-50 p-6 rounded-lg mb-6">
+<h3 className="font-bold text-red-800 mb-3">Danger Zone</h3>
+<p className="text-red-600 mb-4 text-sm">
+Be careful! These actions cannot be undone.
+</p>
+<button onClick={onResetLocalData} className="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300 mb-3">
+Reset Local App Data (Removes all local data & logs you out)
+</button>
+<button onClick={onLogout} className="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-300">
+Log Out
 </button>
 </div>
 </div>
@@ -1602,27 +1854,26 @@ Logout
 // BottomNavigation Component
 const BottomNavigation = ({ currentPage, onNavigate }) => {
 const navItems = [
-{ page: 'dashboard', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> },
-{ page: 'timetable', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> },
+{ page: 'dashboard', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg> },
+{ page: 'timetable', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M21 20V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2Z"></path><path d="M3 10h18"></path></svg> },
 { page: 'trophy', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg> },
 { page: 'profile', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> }
 ];
 
 return (
 <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-40">
-<div className="flex justify-around h-16 max-w-md mx-auto">
+<div className="flex justify-around h-16 items-center">
 {navItems.map((item) => (
 <button
 key={item.page}
+className={`flex flex-col items-center justify-center text-center px-4 py-2 rounded-lg transition-colors duration-200
+${currentPage === item.page ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
 onClick={() => onNavigate(item.page)}
-className={`flex flex-col items-center justify-center flex-1 text-center text-xs transition-colors duration-200 ${
-currentPage === item.page ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
-}`}
 >
 {React.cloneElement(item.icon, {
-className: `mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-500'}`
+className: `w-7 h-7 mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-500'}`
 })}
-<span className="font-medium capitalize">{item.page}</span>
+<span className="text-xs font-medium capitalize">{item.page}</span>
 </button>
 ))}
 </div>
@@ -1630,6 +1881,7 @@ className: `mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-500'
 );
 };
 
+// Mount the App component
 ReactDOM.render(
 <ErrorBoundary>
 <App />
