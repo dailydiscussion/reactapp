@@ -1,72 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="theme-color" content="#000000" />
-<meta name="description" content="Education Dashboard Self-Contained HTML Application" />
-<title>Education Dashboard</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Education Dashboard Self-Contained HTML Application" />
+    <title>Education Dashboard</title>
 
-<script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
 
-<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans&amp;family=Kalnia:wght@600&amp;family=Lemon&amp;family=Raleway:wght@700&amp;family=Tilt+Prism&amp;display=swap" rel="stylesheet">
-<style>
-/* Base styles */
-body {
-font-family: 'Inter', Josefin Sans;
--webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
-background-color: #f9fafb; /* Light gray background */
-color: #1f2937; /* Darker text for readability */
-margin: 0;
-padding: 0;
-display: flex;
-justify-content: center;
-align-items: center;
-min-height: 100vh;
-}
+    <link
+        href="https://fonts.googleapis.com/css2?family=Josefin+Sans&amp;family=Kalnia:wght@600&amp;family=Lemon&amp;family=Raleway:wght@700&amp;family=Tilt+Prism&amp;display=swap"
+        rel="stylesheet">
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Inter', Josefin Sans;
+            -webkit-tap-highlight-color: transparent;
+            /* Disable tap highlight on mobile */
+            background-color: #f9fafb;
+            /* Light gray background */
+            color: #1f2937;
+            /* Darker text for readability */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
 
-/* Hide scrollbar for webkit browsers */
-.no-scrollbar::-webkit-scrollbar {
-display: none;
-}
-/* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
--ms-overflow-style: none;  /* IE and Edge */
-scrollbar-width: none;  /* Firefox */
-}
+        /* Hide scrollbar for webkit browsers */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
 
-/* General page styling - ensures pages fill content area */
-.page {
-min-height: calc(100vh - 80px); /* Adjust based on your header/footer height */
-padding-bottom: 5rem; /* Space for bottom navigation */
-}
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
 
-/* Ensure the main container accounts for fixed bottom nav */
-#main-content {
-padding-bottom: 5rem; /* Adjust if bottom nav height changes */
-}
+        /* General page styling - ensures pages fill content area */
+        .page {
+            min-height: calc(100vh - 80px);
+            /* Adjust based on your header/footer height */
+            padding-bottom: 5rem;
+            /* Space for bottom navigation */
+        }
 
-/* For the fixed notification message to be visible */
-.z-50 {
-z-index: 9999;
-}
+        /* Ensure the main container accounts for fixed bottom nav */
+        #main-content {
+            padding-bottom: 5rem;
+            /* Adjust if bottom nav height changes */
+        }
 
-/* Ensure smooth transitions for page content changes */
-.page-transition {
-transition: opacity 0.3s ease-in-out;
-}
-</style>
+        /* For the fixed notification message to be visible */
+        .z-50 {
+            z-index: 9999;
+        }
+
+        /* Ensure smooth transitions for page content changes */
+        .page-transition {
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
 </head>
+
 <body class="bg-gray-50 text-gray-800 transition-colors duration-300">
-<noscript>You need to enable JavaScript to run this app.</noscript>
-<div id="root" class="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative overflow-hidden transition-colors duration-300"></div>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"
+        class="w-full max-w-md mx-auto bg-white min-h-screen shadow-lg relative overflow-hidden transition-colors duration-300">
+    </div>
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 // Only import what's needed for this setup (signOut for logout simulation)
 import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 // Import all necessary Firestore functions, including addDoc for focus items
@@ -127,8 +142,8 @@ document.getElementById('root').innerHTML = `
 }
 </script>
 
-<script type="text/babel">
-// ErrorBoundary component to catch rendering errors
+    <script type="text/babel">
+        // ErrorBoundary component to catch rendering errors
 class ErrorBoundary extends React.Component {
 constructor(props) {
 super(props);
@@ -590,6 +605,7 @@ mcqs: testToAdd.mcqs,
 date: testToAdd.date,
 link: testToAdd.link || '', // Ensure link is saved
 subject: subjectName,
+// Removed 'type: "Custom"' as requested by user. If a type is desired, it should come from `testToAdd` or be explicitly defined.
 iconPath: testToAdd.iconPath || iconPath,
 completed: testToAdd.completed || false, // Carry over completion status
 order: todayFocusItems.length // Assign an order for reordering
@@ -700,6 +716,7 @@ showNotification("Failed to delete timetable entry.", 'error');
 const navigateTo = useCallback((pageName, options = {}) => {
 console.log("Navigating to:", pageName, "with options:", options);
 setCurrentPage(pageName);
+// If navigating to trophy page from timetable, set the selected subject
 if (pageName === 'trophy' && options.fromTimetable && options.subject) {
 setCurrentSelectedSubject(options.subject);
 }
@@ -823,6 +840,7 @@ timetableEntries={timetableEntries}
 testData={testData}
 currentTimetableSubject={currentTimetableSubject}
 setCurrentTimetableSubject={setCurrentTimetableSubject}
+setCurrentSelectedSubject={setCurrentSelectedSubject} // Pass this down
 addTimetableEntry={addTimetableEntry}
 deleteTimetableEntry={deleteTimetableEntry}
 navigateToTrophyPage={(subject) => navigateTo('trophy', { fromTimetable: true, subject })}
@@ -1039,37 +1057,36 @@ onClick={(e) => e.stopPropagation()} // Prevent card click when interacting with
 <h3 className="font-semibold text-gray-800 leading-tight">{item.title}</h3>
 <div className="flex items-center mt-1 text-sm">
 <span className="text-gray-500">({item.mcqs} MCQs)</span>
+{/* Removed span for item.type to remove "Custom" text */}
 </div>
 </div>
 </div>
 
 {/* Right section: Reorder and Remove Buttons */}
-{allowReorder ? (
-<div className="absolute top-2 right-2 flex flex-col items-center space-y-1">
-<button
-onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
-disabled={isFirst}
-className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
-aria-label="Move up"
->
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
-</button>
-<button
-onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
-disabled={isLast}
-className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
-aria-label="Move down"
->
-<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-</button>
-<button className="p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
-<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-</button>
-</div>
-) : (
-<button className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
-<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-</button>
+{allowReorder && (
+    <div className="absolute top-2 right-2 flex flex-col items-center space-y-1">
+        <button
+            onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+            disabled={isFirst}
+            className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+            aria-label="Move up"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+        </button>
+        <button
+            onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+            disabled={isLast}
+            className="p-1.5 rounded-full text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors duration-200"
+            aria-label="Move down"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+    </div>
+)}
+{!allowReorder && ( // Only show this button if reordering is NOT allowed (i.e., on Dashboard)
+    <button className="absolute top-2 right-2 p-1.5 rounded-full text-gray-400 hover:text-red-500 transition-colors duration-200" onClick={(e) => { e.stopPropagation(); onRemove(item.id); }} aria-label="Remove from focus">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </button>
 )}
 </div>
 );
@@ -1235,7 +1252,7 @@ Delete
 
 
 // TimetablePage Component
-const TimetablePage = ({ timetableEntries, testData, currentTimetableSubject, setCurrentTimetableSubject, addTimetableEntry, deleteTimetableEntry, navigateToTrophyPage }) => {
+const TimetablePage = ({ timetableEntries, testData, currentTimetableSubject, setCurrentTimetableSubject, setCurrentSelectedSubject, addTimetableEntry, deleteTimetableEntry, navigateToTrophyPage }) => {
 const { useState, useEffect, useCallback } = React;
 const [timetableEditMode, setTimetableEditMode] = useState(false);
 const [newSubject, setNewSubject] = useState('');
@@ -1294,7 +1311,10 @@ return (
 id="select-timetable-subject"
 className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
 value={currentTimetableSubject}
-onChange={(e) => setCurrentTimetableSubject(e.target.value)}
+onChange={(e) => {
+    setCurrentTimetableSubject(e.target.value);
+    setCurrentSelectedSubject(e.target.value); // Sync with currentSelectedSubject
+}}
 disabled={subjects.length === 0}
 >
 {subjects.length === 0 && <option value="">No Subjects Available</option>}
@@ -1487,22 +1507,23 @@ onClick={() => setCurrentSelectedSubject(subject)}
 
 {trophyEditMode && (
 <div id="add-new-test-form-container" className="bg-gray-100 p-4 rounded-lg mb-6">
-<h4 className="font-bold text-gray-800 mb-3">Add New Test</h4>
+<h4 className="font-bold text-gray-800 mb-3">Add New Test to <span id="current-subject-name-for-add">{currentSelectedSubject}</span></h4>
 <div className="mb-3">
-<label htmlFor="new-test-title-input" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
-<input type="text" id="new-test-title-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Chapter 1 Quiz" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
+<label htmlFor="new-trophy-test-title" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
+<input type="text" id="new-trophy-test-title" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., New Test Name" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
 </div>
 <div className="mb-3">
-<label htmlFor="new-test-mcqs-input" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
-<input type="number" id="new-test-mcqs-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 25" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
-</div>
-<div className="mb-3">
-<label htmlFor="new-test-date-input" className="block text-sm font-medium text-gray-700 mb-1">Test Date</label>
-<input type="date" id="new-test-date-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
+<label htmlFor="new-trophy-test-mcqs" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
+<input type="number" id="new-trophy-test-mcqs" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 40" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
 </div>
 <div className="mb-4">
-<label htmlFor="new-test-link-input" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
-<input type="url" id="new-test-link-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/quiz" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
+<label htmlFor="new-trophy-test-date" className="block text-sm font-medium text-gray-700 mb-1">Completion Date</label>
+<input type="date" id="new-trophy-test-date" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
+</div>
+{/* New Test Link Input */}
+<div className="mb-4">
+<label htmlFor="new-trophy-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
+<input type="url" id="new-trophy-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
 </div>
 <button onClick={handleAddTest} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
 Add Test
@@ -1510,18 +1531,18 @@ Add Test
 </div>
 )}
 
-<div id="trophy-tests-list" className="space-y-4">
+<div id="test-list-container" className="space-y-3">
 {filteredTests.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No tests found for this subject or matching your search. Add some!</p>
+<p className="text-gray-500 text-center py-4">No tests available for {currentSelectedSubject} matching your search.</p>
 ) : (
 filteredTests.map(test => (
 <TestCard
-key={`${currentSelectedSubject}-${test.title}`}
+key={test.title}
 test={test}
 subject={currentSelectedSubject}
 isEditMode={trophyEditMode}
 onDelete={deleteTest}
-handleToggleTestCompletion={handleToggleTestCompletion}
+handleToggleTestCompletion={handleToggleTestCompletion} // Pass the handler
 />
 ))
 )}
@@ -1530,137 +1551,202 @@ handleToggleTestCompletion={handleToggleTestCompletion}
 );
 };
 
-// EditFocusPage Component (for Today's Focus)
+// AvailableTestCard for EditFocusPage
+const AvailableTestCard = ({ test, subject, isAdded, onAdd, onRemove, handleToggleTestCompletion }) => {
+// This is a temporary ID for non-Firestore items in `allTests` when checking against local `todayFocusItems`
+// The `item.id` for `todayFocusItems` is the Firestore document ID.
+const localTempId = `${subject}-${test.title}`;
+
+const handleCheckboxChange = (e) => {
+e.stopPropagation(); // Prevent card click when clicking checkbox
+handleToggleTestCompletion(subject, test.title, e.target.checked);
+};
+
+const cardClasses = `
+bg-gray-100 p-4 rounded-lg flex justify-between items-center transition-colors duration-300
+${test.completed ? 'bg-green-50 border border-green-200' : 'border border-gray-200'}
+${isAdded ? 'opacity-50 pointer-events-none' : ''}
+`;
+
+
+return (
+<div id={`available-test-${localTempId}`} className={cardClasses}>
+<div className="flex items-center flex-grow">
+{/* Completion Checkbox */}
+<input
+type="checkbox"
+checked={test.completed}
+onChange={handleCheckboxChange}
+className="h-5 w-5 text-blue-600 bg-gray-200 border-gray-300 rounded focus:ring-blue-500 mr-3"
+onClick={(e) => e.stopPropagation()}
+/>
+<div>
+<h4 className="font-semibold text-gray-800">{test.title}</h4>
+<p className="text-sm text-gray-500 mt-1">{test.mcqs} MCQs - {subject}</p>
+</div>
+</div>
+<button
+className={`text-white px-3 py-1 rounded-full text-sm transition duration-200
+${isAdded ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-600'}`}
+onClick={() => onAdd(test, subject)} // 'test' already contains 'completed' field
+disabled={isAdded}
+>
+{isAdded ? 'Added' : 'Add'}
+</button>
+</div>
+);
+};
+
+
+// EditFocusPage Component
 const EditFocusPage = ({ testData, todayFocusItems, addFocusItem, removeFocusItem, reorderFocusItems, onBackToDashboard, handleToggleTestCompletion }) => {
 const { useState, useEffect, useRef } = React;
-const [activeSubject, setActiveSubject] = useState('');
-const [searchTerm, setSearchTerm] = useState('');
-const dragItem = useRef(); // Ref for the item being dragged
-const dragOverItem = useRef(); // Ref for the item being dragged over
+const [searchQuery, setSearchQuery] = useState(''); // New: Search query state
+const [selectedAvailableSubject, setSelectedAvailableSubject] = useState(''); // New state for subject filter
+const [localFocusItems, setLocalFocusItems] = useState([]); // Local state for reordering
 
 useEffect(() => {
-const subjects = Object.keys(testData);
-if (subjects.length > 0 && !activeSubject) {
-setActiveSubject(subjects[0]);
-}
-}, [testData, activeSubject]);
+// Initialize local state with current todayFocusItems, ensuring 'order' is present for sort
+setLocalFocusItems(todayFocusItems.map((item, index) => ({ ...item, order: item.order !== undefined ? item.order : index })));
+}, [todayFocusItems]);
 
-const handleDragStart = (e, index) => {
-dragItem.current = index;
-};
-
-const handleDragEnter = (e, index) => {
-dragOverItem.current = index;
-};
-
-const handleDragEnd = () => {
-const newTodayFocusItems = [...todayFocusItems];
-const draggedItemContent = newTodayFocusItems[dragItem.current];
-newTodayFocusItems.splice(dragItem.current, 1); // Remove dragged item
-newTodayFocusItems.splice(dragOverItem.current, 0, draggedItemContent); // Insert at new position
-
-dragItem.current = null;
-dragOverItem.current = null;
-reorderFocusItems(newTodayFocusItems); // Call the reorder function to update Firestore and state
-};
-
-
-const availableTests = activeSubject ? testData[activeSubject] || [] : [];
-const filteredAvailableTests = availableTests.filter(test =>
-test.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-!todayFocusItems.some(item => item.subject === activeSubject && item.title === test.title)
+// Generate a temporary 'id' for items from testData that don't have a Firestore ID yet
+const allTests = Object.keys(testData).flatMap(subject =>
+    testData[subject].map(test => ({ ...test, subject, id: `${subject}-${test.title}` })) // Temporary ID for non-Firestore items
 );
 
-const handleCheckboxChange = (testTitle, completedStatus) => {
-handleToggleTestCompletion(activeSubject, testTitle, completedStatus);
+// Filter all available tests based on selected subject and then search query
+const filteredAllTests = allTests.filter(test => {
+    const matchesSubject = selectedAvailableSubject === '' || test.subject === selectedAvailableSubject;
+    const matchesSearch = test.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          test.subject.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSubject && matchesSearch;
+});
+
+const subjects = Object.keys(testData); // Get subjects for the dropdown
+
+const handleMoveUp = async (index) => { // Made async
+if (index > 0) {
+const newOrder = [...localFocusItems];
+[newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
+setLocalFocusItems(newOrder); // Update local state immediately
+await reorderFocusItems(newOrder); // Await Firestore update
+}
 };
+
+const handleMoveDown = async (index) => { // Made async
+if (index < localFocusItems.length - 1) {
+const newOrder = [...localFocusItems];
+[newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
+setLocalFocusItems(newOrder); // Update local state immediately
+await reorderFocusItems(newOrder); // Await Firestore update
+}
+}
+;
 
 
 return (
 <div id="page-edit-focus" className="page px-6 py-8">
 <header className="flex items-center justify-between mb-2">
-<h1 className="text-3xl font-bold text-gray-900">Edit Today's Focus</h1>
+<h1 className="text-3xl font-bold text-gray-900">Edit Focus</h1>
 <button onClick={onBackToDashboard} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Done</button>
 </header>
-<p className="text-gray-500 mb-6">Manage what you want to focus on today.</p>
+<p className="text-gray-500 mb-6">Select tests to add to your Today's Focus:</p>
 
-<h3 className="font-bold text-lg text-gray-800 mb-3">Currently Focused:</h3>
-<div className="space-y-4 mb-6">
-{todayFocusItems.length === 0 ? (
-<p className="text-gray-500 text-center">No items in Today's Focus. Add some below!</p>
+<div className="mt-8 pt-4 border-t border-gray-200">
+<h2 className="text-xl font-bold text-gray-900 mb-4">Tests in Today's Focus</h2>
+<div id="current-focus-tests-ui" className="space-y-2">
+{localFocusItems.length === 0 ? (
+<p className="text-gray-500 text-center w-full">No focus items for today. Add some from the list below.</p>
 ) : (
-todayFocusItems.map((item, index) => (
+localFocusItems.map((item, index) => (
 <FocusItemCard
-key={item.id} // Use Firestore ID for key
+key={item.id} // Use the Firestore-generated ID
 item={item}
 onRemove={removeFocusItem}
-handleToggleTestCompletion={handleToggleTestCompletion} // Pass handler
+handleToggleTestCompletion={handleToggleTestCompletion}
 allowReorder={true} // Enable reorder buttons
-onMoveUp={() => {
-if (index > 0) {
-const newOrder = [...todayFocusItems];
-[newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
-reorderFocusItems(newOrder);
-}
-}}
-onMoveDown={() => {
-if (index < todayFocusItems.length - 1) {
-const newOrder = [...todayFocusItems];
-[newOrder[index + 1], newOrder[index]] = [newOrder[index], newOrder[index + 1]];
-reorderFocusItems(newOrder);
-}
-}}
+onMoveUp={() => handleMoveUp(index)}
+onMoveDown={() => handleMoveDown(index)}
 isFirst={index === 0}
-isLast={index === todayFocusItems.length - 1}
+isLast={index === localFocusItems.length - 1}
+/>
+))
+)}
+</div>
+</div>
+
+<h3 className="font-bold text-gray-900 mb-4">Available Tests to Add</h3>
+{/* New: Subject Filter Dropdown */}
+<div className="mb-4">
+    <label htmlFor="select-available-subject" className="block text-sm font-medium text-gray-700 mb-1">Filter by Subject:</label>
+    <select
+        id="select-available-subject"
+        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={selectedAvailableSubject}
+        onChange={(e) => setSelectedAvailableSubject(e.target.value)}
+    >
+        <option value="">All Subjects</option>
+        {subjects.map(subject => (
+            <option key={subject} value={subject}>{subject}</option>
+        ))}
+    </select>
+</div>
+
+{/* Search Input for Available Tests */}
+<div className="mb-6">
+<input
+type="text"
+placeholder="Search available tests..."
+className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+value={searchQuery}
+onChange={(e) => setSearchQuery(e.target.value)}
+/>
+</div>
+
+<div id="available-tests-list" className="space-y-3 mb-8">
+{filteredAllTests.length === 0 ? (
+<p className="text-gray-500 text-center py-4">No tests available to add matching your filters.</p>
+) : (
+filteredAllTests.map(test => (
+<AvailableTestCard
+key={test.id} // Use the generated local id for React keying
+test={test}
+subject={test.subject}
+// Check if the item is already in todayFocusItems by its Firestore-generated ID OR by its subject/title combo
+isAdded={todayFocusItems.some(item => item.id === test.id || (item.subject === test.subject && item.title === test.title))}
+onAdd={addFocusItem}
+onRemove={removeFocusItem}
+handleToggleTestCompletion={handleToggleTestCompletion}
 />
 ))
 )}
 </div>
 
-<hr className="my-6 border-t border-gray-200" />
 
-<h3 className="font-bold text-lg text-gray-800 mb-3">Add Items to Focus:</h3>
-<div className="mb-4">
-<label htmlFor="select-subject-for-focus" className="block text-sm font-medium text-gray-700 mb-1">Select Subject:</label>
-<select
-id="select-subject-for-focus"
-className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-value={activeSubject}
-onChange={(e) => setActiveSubject(e.target.value)}
->
-{Object.keys(testData).length === 0 && <option value="">No Subjects Available</option>}
-{Object.keys(testData).map(subject => (
-<option key={subject} value={subject}>{subject}</option>
-))}
-</select>
 </div>
+);
+};
 
-<div className="mb-4">
-<input
-type="text"
-placeholder="Search tests to add..."
-className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-value={searchTerm}
-onChange={(e) => setSearchTerm(e.target.value)}
-/>
+// ManagedSubjectSection Component
+const ManagedSubjectSection = ({ subjectName, tests, onDeleteSubject, onDeleteTest }) => {
+return (
+<div className="bg-gray-100 p-4 rounded-lg shadow-sm mb-4">
+<div className="flex justify-between items-center mb-3">
+<h3 className="font-bold text-lg text-gray-800">{subjectName}</h3>
+<button onClick={() => onDeleteSubject(subjectName)} className="delete-subject-btn bg-red-500 text-white px-3 py-1 rounded-full text-sm hover:bg-red-600 transition duration-200">Delete Subject</button>
 </div>
-
-<div className="space-y-3">
-{filteredAvailableTests.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No tests available to add from {activeSubject || 'selected subject'} or already added.</p>
+<div className="space-y-2">
+{tests.length === 0 ? (
+<p className="text-gray-500 text-sm italic">No tests in this subject.</p>
 ) : (
-filteredAvailableTests.map(test => (
-<div key={test.title} className="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
-<div>
-<h4 className="font-semibold text-gray-800">{test.title}</h4>
-<p className="text-sm text-gray-500">{test.mcqs} MCQs</p>
-</div>
-<button
-onClick={() => addFocusItem(test, activeSubject)}
-className="bg-blue-500 text-white text-sm font-medium px-3 py-1 rounded-md hover:bg-blue-600 transition-colors duration-200"
->
-Add
-</button>
+tests.map(test => (
+<div key={test.title} className="flex justify-between items-center bg-white p-3 rounded-md border border-gray-200 text-sm">
+<span>{test.title} ({test.mcqs} MCQs, {test.date})</span>
+{test.link && (
+<a href={test.link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs ml-2" onClick={(e) => e.stopPropagation()}>Link</a>
+)}
+<button onClick={() => onDeleteTest(subjectName, test.title)} className="delete-test-btn text-red-500 hover:text-red-700 font-medium ml-2">Delete</button>
 </div>
 ))
 )}
@@ -1673,11 +1759,11 @@ Add
 const ManageContentPage = ({ testData, addSubject, addTest, deleteSubject, deleteTest, onBackToProfile }) => {
 const { useState } = React;
 const [newSubjectName, setNewSubjectName] = useState('');
-const [newTestSubject, setNewTestSubject] = useState('');
+const [selectedSubjectForTest, setSelectedSubjectForTest] = useState('');
 const [newTestTitle, setNewTestTitle] = useState('');
 const [newTestMcqs, setNewTestMcqs] = useState('');
 const [newTestDate, setNewTestDate] = useState('');
-const [newTestLink, setNewTestLink] = useState('');
+const [newTestLink, setNewTestLink] = useState(''); // New state for the link
 
 const handleAddSubject = () => {
 addSubject(newSubjectName);
@@ -1685,125 +1771,79 @@ setNewSubjectName('');
 };
 
 const handleAddTest = () => {
-addTest(newTestSubject, newTestTitle, newTestMcqs, newTestDate, newTestLink);
+addTest(selectedSubjectForTest, newTestTitle, newTestMcqs, newTestDate, newTestLink); // Pass newTestLink
 setNewTestTitle('');
 setNewTestMcqs('');
 setNewTestDate('');
-setNewTestLink('');
+setNewTestLink(''); // Clear link after adding
 };
 
 const subjects = Object.keys(testData);
 
-// Set default subject for add test form if not already set
-React.useEffect(() => {
-if (subjects.length > 0 && !newTestSubject) {
-setNewTestSubject(subjects[0]);
-}
-}, [subjects, newTestSubject]);
-
-
 return (
-<div id="page-manage-content" className="page px-6 py-8">
-<header className="flex items-center justify-between mb-2">
+<div id="page-manage-tests" className="page px-6 py-8">
+<header className="flex items-center justify-between mb-6">
 <h1 className="text-3xl font-bold text-gray-900">Manage Content</h1>
-<button onClick={onBackToProfile} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Back to Profile</button>
+<button onClick={onBackToProfile} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Done</button>
 </header>
-<p className="text-gray-500 mb-6">Add or remove subjects and tests.</p>
 
-{/* Add Subject Form */}
-<div className="bg-gray-100 p-4 rounded-lg mb-6">
-<h3 className="font-bold text-gray-800 mb-3">Add New Subject</h3>
+<h2 className="text-xl font-bold text-gray-800 mb-4">Add New Subject</h2>
+<div className="mb-8 p-4 bg-gray-100 rounded-lg">
 <div className="mb-4">
-<label htmlFor="new-subject-name-input" className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
-<input type="text" id="new-subject-name-input" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Biology" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} />
+<label htmlFor="new-subject-name" className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
+<input type="text" id="new-subject-name" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Biochemistry" value={newSubjectName} onChange={(e) => setNewSubjectName(e.target.value)} />
 </div>
-<button onClick={handleAddSubject} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
+<button onClick={handleAddSubject} className="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300">
 Add Subject
 </button>
 </div>
 
-{/* Subject List with Delete */}
-<div className="mb-8">
-<h3 className="font-bold text-gray-800 mb-3">Existing Subjects</h3>
-{subjects.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No subjects added yet.</p>
-) : (
-<div className="space-y-3">
-{subjects.map(subject => (
-<div key={subject} className="bg-white p-3 rounded-lg flex items-center justify-between shadow-sm">
-<p className="font-medium text-gray-800">{subject}</p>
-<button onClick={() => deleteSubject(subject)} className="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 rounded-full">
-Delete
-</button>
-</div>
-))}
-</div>
-)}
-</div>
-
-{/* Add Test Form */}
-<div className="bg-gray-100 p-4 rounded-lg mb-6">
-<h3 className="font-bold text-gray-800 mb-3">Add New Test</h3>
-<div className="mb-3">
-<label htmlFor="select-test-subject" className="block text-sm font-medium text-gray-700 mb-1">Select Subject</label>
-<select
-id="select-test-subject"
-className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-value={newTestSubject}
-onChange={(e) => setNewTestSubject(e.target.value)}
-disabled={subjects.length === 0}
->
-{subjects.length === 0 && <option value="">No Subjects Available</option>}
+<h2 className="text-xl font-bold text-gray-800 mb-4">Add New Test</h2>
+<div className="mb-8 p-4 bg-gray-100 rounded-lg">
+<div className="mb-4">
+<label htmlFor="select-subject-for-test" className="block text-sm font-medium text-gray-700 mb-1">Select Subject</label>
+<select id="select-subject-for-test" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={selectedSubjectForTest} onChange={(e) => setSelectedSubjectForTest(e.target.value)}>
+<option value="">Select a Subject</option>
 {subjects.map(subject => (
 <option key={subject} value={subject}>{subject}</option>
 ))}
 </select>
 </div>
-<div className="mb-3">
-<label htmlFor="new-test-title-manage" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
-<input type="text" id="new-test-title-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Midterm Exam" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
-</div>
-<div className="mb-3">
-<label htmlFor="new-test-mcqs-manage" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
-<input type="number" id="new-test-mcqs-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 50" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
-</div>
-<div className="mb-3">
-<label htmlFor="new-test-date-manage" className="block text-sm font-medium text-gray-700 mb-1">Test Date</label>
-<input type="date" id="new-test-date-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
+<div className="mb-4">
+<label htmlFor="new-test-title" className="block text-sm font-medium text-gray-700 mb-1">Test Title</label>
+<input type="text" id="new-test-title" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Carbohydrate Metabolism" value={newTestTitle} onChange={(e) => setNewTestTitle(e.target.value)} />
 </div>
 <div className="mb-4">
-<label htmlFor="new-test-link-manage" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
-<input type="url" id="new-test-link-manage" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/exam" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
+<label htmlFor="new-test-mcqs" className="block text-sm font-medium text-gray-700 mb-1">Number of MCQs</label>
+<input type="number" id="new-test-mcqs" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., 50" value={newTestMcqs} onChange={(e) => setNewTestMcqs(e.target.value)} />
+</div>
+<div className="mb-4">
+<label htmlFor="new-test-date" className="block text-sm font-medium text-gray-700 mb-1">Completion Date</label>
+<input type="date" id="new-test-date" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" value={newTestDate} onChange={(e) => setNewTestDate(e.target.value)} />
+</div>
+{/* New Test Link Input */}
+<div className="mb-4">
+<label htmlFor="new-manage-test-link" className="block text-sm font-medium text-gray-700 mb-1">Test Link (Optional)</label>
+<input type="url" id="new-manage-test-link" className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., https://example.com/test" value={newTestLink} onChange={(e) => setNewTestLink(e.target.value)} />
 </div>
 <button onClick={handleAddTest} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
 Add Test
 </button>
 </div>
 
-{/* Test List by Subject with Delete */}
-<div>
-<h3 className="font-bold text-gray-800 mb-3">Existing Tests</h3>
+<h2 className="text-xl font-bold text-gray-800 mb-4">Existing Content</h2>
+<div id="manage-content-list" className="space-y-4">
 {subjects.length === 0 ? (
-<p className="text-gray-500 text-center py-4">No tests added yet. Add a subject first.</p>
+<p className="text-gray-500 text-center py-4">No subjects available. Add a new subject above.</p>
 ) : (
 subjects.map(subject => (
-<div key={subject} className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-<h4 className="font-semibold text-gray-800 mb-3">{subject}</h4>
-{testData[subject]?.length === 0 ? (
-<p className="text-gray-500 text-center text-sm py-2">No tests for this subject.</p>
-) : (
-<div className="space-y-3">
-{testData[subject].map(test => (
-<div key={`${subject}-${test.title}`} className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
-<p className="text-gray-800">{test.title} ({test.mcqs} MCQs)</p>
-<button onClick={() => deleteTest(subject, test.title)} className="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 rounded-full">
-Delete
-</button>
-</div>
-))}
-</div>
-)}
-</div>
+<ManagedSubjectSection
+key={subject}
+subjectName={subject}
+tests={testData[subject]}
+onDeleteSubject={deleteSubject}
+onDeleteTest={deleteTest}
+/>
 ))
 )}
 </div>
@@ -1813,38 +1853,65 @@ Delete
 
 // ProfilePage Component
 const ProfilePage = ({ onManageContent, onLogout, currentUserId, userName, userEmail, onResetLocalData }) => {
+    // Function to show a notification for unimplemented features
+    const showUnimplementedFeatureNotification = () => {
+        // Assuming there's a global showNotification function available from App component
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('This feature is not yet implemented.', 'info');
+        } else {
+            console.warn('showNotification function is not available.');
+        }
+    };
+
 return (
 <div id="page-profile" className="page px-6 py-8">
-<header className="flex items-center justify-between mb-2">
-<h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+<header className="mb-6">
+<h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+<p className="text-gray-500 mt-2">Manage your account and app settings.</p>
 </header>
-<p className="text-gray-500 mb-6">Manage your account and app data.</p>
 
-<div className="bg-gray-100 p-6 rounded-lg mb-6">
-<h3 className="font-bold text-gray-800 mb-3">Account Information</h3>
-<div className="flex items-center gap-4 mb-4">
+<div className="bg-gray-100 p-6 rounded-lg shadow-md mb-6">
+<div className="flex items-center space-x-4">
 <img src="https://placehold.co/80x80/E2E8F0/4A5568?text=NK" alt="User Avatar" className="w-16 h-16 rounded-full" />
 <div>
-<p className="font-semibold text-gray-800 text-lg">{userName || 'Guest User'}</p>
-<p className="text-sm text-gray-600">{userEmail || 'N/A'}</p>
-<p className="text-xs text-gray-500 break-all">ID: {currentUserId || 'N/A'}</p>
+<h2 className="text-xl font-bold text-gray-800">{userName || 'User'}</h2>
+<p className="text-gray-600 text-sm">{userEmail || 'No Email'}</p>
+<p className="text-xs text-gray-500 break-all">User ID: {currentUserId || 'N/A'}</p>
 </div>
 </div>
-<button onClick={onManageContent} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-300">
-Manage Subjects & Tests
-</button>
 </div>
 
-<div className="bg-red-50 p-6 rounded-lg mb-6">
-<h3 className="font-bold text-red-800 mb-3">Danger Zone</h3>
-<p className="text-red-600 mb-4 text-sm">
-Be careful! These actions cannot be undone.
-</p>
-<button onClick={onResetLocalData} className="w-full bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-300 mb-3">
-Reset Local App Data (Removes all local data & logs you out)
+<div className="space-y-4 mb-8">
+    {/* Converted to div and added onClick for unimplemented feature */}
+    <div
+        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
+        onClick={showUnimplementedFeatureNotification}
+    >
+        Edit Profile
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+    {/* Corrected typo items-around to items-center and converted to div */}
+    <div
+        className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200 cursor-pointer"
+        onClick={showUnimplementedFeatureNotification}
+    >
+        Subscription
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+    <button onClick={onManageContent} className="w-full bg-blue-50 text-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-between hover:bg-blue-100 transition duration-200">
+        Manage Subjects & Tests
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </button>
+</div>
+
+<div className="mt-auto pt-6 border-t border-gray-200">
+<button onClick={onResetLocalData} className="w-full bg-yellow-100 text-yellow-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:bg-yellow-200 transition duration-200 mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9 0 0 0 6.74-2.74L21 16"></path><path d="M16 21v-5h5"></path></svg>
+    Reset Local App Data
 </button>
-<button onClick={onLogout} className="w-full bg-gray-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-300">
-Log Out
+<button onClick={onLogout} className="w-full bg-red-100 text-red-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center hover:bg-red-200 transition duration-200">
+<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="17 16 22 12 17 8"></polyline><line x1="22" y1="12" x2="10" y2="12"></line></svg>
+Logout
 </button>
 </div>
 </div>
@@ -1854,26 +1921,27 @@ Log Out
 // BottomNavigation Component
 const BottomNavigation = ({ currentPage, onNavigate }) => {
 const navItems = [
-{ page: 'dashboard', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg> },
-{ page: 'timetable', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><path d="M21 20V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2Z"></path><path d="M3 10h18"></path></svg> },
-{ page: 'trophy', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg> },
+{ page: 'dashboard', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg> },
+{ page: 'timetable', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> },
+{ page: 'trophy', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg> },
 { page: 'profile', icon: <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> }
 ];
 
 return (
-<nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-40">
-<div className="flex justify-around h-16 items-center">
+<nav className="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200 z-40 transition-colors duration-300">
+<div className="flex justify-around h-16 max-w-md mx-auto">
 {navItems.map((item) => (
 <button
 key={item.page}
-className={`flex flex-col items-center justify-center text-center px-4 py-2 rounded-lg transition-colors duration-200
-${currentPage === item.page ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
 onClick={() => onNavigate(item.page)}
+className={`flex flex-col items-center justify-center flex-1 text-center text-xs transition-colors duration-200 ${
+currentPage === item.page ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'
+}`}
 >
 {React.cloneElement(item.icon, {
-className: `w-7 h-7 mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-500'}`
+className: `mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-gray-500'}`
 })}
-<span className="text-xs font-medium capitalize">{item.page}</span>
+<span className="font-medium capitalize">{item.page}</span>
 </button>
 ))}
 </div>
@@ -1881,7 +1949,6 @@ className: `w-7 h-7 mb-1 ${currentPage === item.page ? 'text-blue-600' : 'text-g
 );
 };
 
-// Mount the App component
 ReactDOM.render(
 <ErrorBoundary>
 <App />
@@ -1890,4 +1957,5 @@ document.getElementById('root')
 );
 </script>
 </body>
+
 </html>
