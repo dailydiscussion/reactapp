@@ -11,11 +11,10 @@
 <script src="https://cdn.tailwindcss.com"></script>
 
 <!-- Google Fonts for Inter -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans&amp;family=Kalnia:wght@600&amp;family=Lemon&amp;family=Raleway:wght@700&amp;family=Tilt+Prism&amp;display=swap" rel="stylesheet">
 <style>
 body {
-font-family: 'Inter', sans-serif;
+font-family: 'Inter',Josefin Sans;
 -webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
 background-color: #f9fafb; /* Light gray background */
 color: #1f2937; /* Darker text for readability */
@@ -946,7 +945,7 @@ subjects: uniqueSubjects.size
 
 return (
 <div id="page-dashboard" className="page px-6 py-8">
-<div className="flex justify-between items-center py-4"> {/* Added py-4, kept items-center */}
+<div className="flex justify-between items-center"> {/* Added py-4, kept items-center */}
 <div> {/* New div for Greeting */}
 <Greeting userName="Nikhil" />
 </div>
@@ -992,6 +991,10 @@ icon={<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 
 />
 </div>
 <div>
+
+{/* Horizontal line for separation */}
+<hr className="my-6 border-t border-gray-200" />
+
 <header className="flex items-center justify-between mb-2">
 <h2 className="text-xl font-bold text-gray-900">Today's Focus</h2>
 <button onClick={onEditFocus} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit Focus</button>
