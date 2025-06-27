@@ -2,7 +2,7 @@
   "name": "Education Dashboard",
   "short_name": "EduDashboard",
   "description": "Your personalized education progress tracker, working offline!",
-  "start_url": "/",
+  "start_url": "https://dailydiscussion.github.io/reactapp/",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#2563eb",
