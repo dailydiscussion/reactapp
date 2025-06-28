@@ -1,11 +1,15 @@
 // Define the cache name for your PWA assets.
-const CACHE_NAME = 'education-dashboard-v1';
+// IMPORTANT: Increment this version number when you make changes to files
+// listed in urlsToCache or core application logic to ensure users get the latest updates.
+const CACHE_NAME = 'education-dashboard-v2'; // <--- UPDATED CACHE NAME
+
 // List all the files you want to cache. This includes HTML, CSS, JS, etc.
 // Important: Ensure these paths are correct relative to the service worker file.
 const urlsToCache = [
   '/', // Caches the root HTML file
   '/index.html',
   '/manifest.json',
+  // Your CDN links for libraries and fonts
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/react@18/umd/react.production.min.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
@@ -17,23 +21,27 @@ const urlsToCache = [
   // Placeholder images for icons (replace with actual icons if you have them)
   'https://placehold.co/192x192/2563eb/ffffff?text=ED',
   'https://placehold.co/512x512/2563eb/ffffff?text=ED',
-  'https://placehold.co/48x48/007bff/ffffff?text=🔔',
-  'https://placehold.co/80x80/E2E8F0/4A5568?text=NK'
+  // Add any other static assets (e.g., custom CSS files, images) here
+  // For example, if you move your inline CSS to style.css:
+  // '/style.css'
 ];
 
-// Install event: caches all the essential assets
+// During the install phase, cache all static assets
 self.addEventListener('install', (event) => {
   console.log('Service Worker: Install Event');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Service Worker: Caching App Shell');
+        console.log('Service Worker: Caching static assets');
         return cache.addAll(urlsToCache);
+      })
+      .catch((error) => {
+        console.error('Service Worker: Caching failed', error);
       })
   );
 });
 
-// Activate event: cleans up old caches
+// Activate event: Clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('Service Worker: Activate Event');
   event.waitUntil(
@@ -50,15 +58,39 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event: intercepts network requests and serves from cache if available
+// Fetch event: Implement caching strategies
 self.addEventListener('fetch', (event) => {
-  // We only cache GET requests
-  if (event.request.method !== 'GET') {
-    return;
+  // Check if the request is for a cached URL (e.g., main app resources)
+  const requestUrl = new URL(event.request.url);
+  const isPrecachedAsset = urlsToCache.includes(requestUrl.href) || urlsToCache.includes(requestUrl.pathname);
+
+  // Strategy for pre-cached assets (Cache-First, with network revalidation)
+  // This is a form of Stale-While-Revalidate for precached items.
+  if (isPrecachedAsset) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          // If network is successful, update the cache
+          if (networkResponse.ok || networkResponse.type === 'opaque') {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, networkResponse.clone());
+            });
+          }
+          return networkResponse;
+        }).catch(() => {
+          // If network fails for a precached asset, return cached response if available
+          return cachedResponse || new Response('<h1>Offline Content Unavailable</h1><p>The requested content is not available offline.</p>', { headers: { 'Content-Type': 'text/html' } });
+        });
+
+        // Return cached response immediately if available, otherwise wait for network
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return; // Stop further processing for precached assets
   }
 
-  // Define a network-first strategy for most requests,
-  // falling back to cache if network is unavailable.
+  // Default strategy for all other requests (Network-First, then Cache Fallback)
+  // This is good for dynamic content or assets not explicitly precached.
   event.respondWith(
     fetch(event.request)
       .then(async (response) => {
@@ -79,15 +111,15 @@ self.addEventListener('fetch', (event) => {
           return cachedResponse;
         }
         // If not in cache, fallback for specific content types (e.g., HTML pages)
-        // For example, if it's a navigation request and no cache, you might serve an offline page.
-        // For this app, simply return a generic offline response or let it fail if not in cache.
         if (event.request.mode === 'navigate') {
           // You could return a custom offline.html here if you had one
-          // return caches.match('/offline.html');
           return new Response('<h1>You are offline!</h1><p>Please check your internet connection.</p>', {
             headers: { 'Content-Type': 'text/html' }
           });
         }
+        // For other types of requests (e.g., images, scripts) that are not cached and network fails,
+        // you might want to return an empty response or a generic fallback.
+        // For now, it will effectively return nothing, leading to a network error in the browser.
       })
   );
 });
