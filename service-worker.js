@@ -1,7 +1,7 @@
 // Define the cache name for your PWA assets.
 // IMPORTANT: Increment this version number when you make changes to files
 // listed in urlsToCache or core application logic to ensure users get the latest updates.
-const CACHE_NAME = 'education-dashboard-v2'; // <--- UPDATED CACHE NAME
+const CACHE_NAME = 'education-dashboard-v3'; // <--- UPDATED CACHE NAME FOR NEW CACHING STRATEGY
 
 // List all the files you want to cache. This includes HTML, CSS, JS, etc.
 // Important: Ensure these paths are correct relative to the service worker file.
@@ -9,7 +9,7 @@ const urlsToCache = [
   '/', // Caches the root HTML file
   '/index.html',
   '/manifest.json',
-  // Your CDN links for libraries and fonts
+  // Your CDN links for libraries and fonts - IMPORTANT: Ensure these are precise URLs
   'https://cdn.tailwindcss.com',
   'https://unpkg.com/react@18/umd/react.production.min.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
@@ -18,9 +18,11 @@ const urlsToCache = [
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js',
   'https://fonts.googleapis.com/css2?family=Josefin+Sans&family=Kalnia:wght@600&family=Lemon&family=Raleway:wght@700&family=Tilt+Prism&display=swap',
-  // Placeholder images for icons (replace with actual icons if you have them)
-  'https://placehold.co/192x192/2563eb/ffffff?text=ED',
-  'https://placehold.co/512x512/2563eb/ffffff?text=ED',
+  // Placeholder images used in the app (if any)
+  'https://placehold.co/80x80/E2E8F0/4A5568?text=NK',
+  'https://placehold.co/48x48/007bff/ffffff?text=🔔',
+  'https://placehold.co/192x192/2563eb/ffffff?text=ED', // Example for manifest icons
+  'https://placehold.co/512x512/2563eb/ffffff?text=ED', // Example for manifest icons
   // Add any other static assets (e.g., custom CSS files, images) here
   // For example, if you move your inline CSS to style.css:
   // '/style.css'
@@ -60,8 +62,9 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event: Implement caching strategies
 self.addEventListener('fetch', (event) => {
-  // Check if the request is for a cached URL (e.g., main app resources)
   const requestUrl = new URL(event.request.url);
+
+  // Determine if the request URL (pathname or full href) is in our pre-cached list
   const isPrecachedAsset = urlsToCache.includes(requestUrl.href) || urlsToCache.includes(requestUrl.pathname);
 
   // Strategy for pre-cached assets (Cache-First, with network revalidation)
@@ -96,7 +99,8 @@ self.addEventListener('fetch', (event) => {
       .then(async (response) => {
         // If the network request was successful, cache the new response
         // Do not cache opaque responses (e.g., from different origins that don't support CORS)
-        if (response.ok || response.type === 'opaque') {
+        // Ensure it's a GET request and not a range request (e.g., for videos)
+        if (event.request.method === 'GET' && (response.ok || response.type === 'opaque') && !event.request.headers.has('range')) {
           const cache = await caches.open(CACHE_NAME);
           // Put a clone of the response into the cache
           cache.put(event.request, response.clone());
